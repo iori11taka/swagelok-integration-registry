@@ -12,11 +12,6 @@
     : null;
 
   const itemMasterHierarchy = window.ITEM_MASTER_HIERARCHY || [];
-
-
-  // Core application state + DOM helper.
-  // These definitions are intentionally kept near the top because the
-  // authentication and view handlers below depend on them during startup.
   let records = [];
   let originalEditCode = '';
   let currentSession = null;
@@ -25,36 +20,61 @@
   const views = ['dashboard', 'records', 'new'];
   const $ = id => document.getElementById(id);
 
+  function getCategory(code) { return itemMasterHierarchy.find(x => x.code === code) || null; }
+  function getGroup(categoryCode, groupCode) { return getCategory(categoryCode)?.groups?.find(x => x.code === groupCode) || null; }
+  function getSeries(categoryCode, groupCode, seriesCode) { return getGroup(categoryCode, groupCode)?.series?.find(x => x.code === seriesCode) || null; }
+  function hierarchyLabel(record, compact=false) {
+    if (!record?.category_code) return 'Sin Item Master';
+    if (!record?.group_code) return compact ? record.category_code : `${record.category_code} — ${record.category_name || ''}`;
+    if (!record?.series_code) return compact ? `${record.group_code} · ${record.group_name || ''}` : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''}`;
+    return compact ? `${record.group_code} · ${record.series_code} — ${record.series_name || ''}` : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''} / ${record.series_code} — ${record.series_name || ''}`;
+  }
+  function isMapped(record) { return !!(record?.category_code && record?.group_code && record?.series_code); }
+  function populateCategorySelect(id, selected='', allowBlank=true) {
+    const el=$(id); if(!el) return;
+    el.innerHTML=(allowBlank?'<option value="">Sin Category</option>':'<option value="">Seleccionar Category</option>')+itemMasterHierarchy.map(x=>`<option value="${escapeHtml(x.code)}"${x.code===selected?' selected':''}>${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');
+  }
+  function populateGroupSelect(id, categoryCode, selected='', allowBlank=true) {
+    const el=$(id); if(!el) return; const c=getCategory(categoryCode);
+    el.innerHTML=(allowBlank?'<option value="">Sin Group</option>':'<option value="">Seleccionar Group</option>')+(c?.groups||[]).map(x=>`<option value="${escapeHtml(x.code)}"${x.code===selected?' selected':''}>${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');
+    el.disabled=!categoryCode;
+  }
+  function populateSeriesSelect(id, categoryCode, groupCode, selected='', allowBlank=true) {
+    const el=$(id); if(!el) return; const g=getGroup(categoryCode,groupCode);
+    el.innerHTML=(allowBlank?'<option value="">Sin Series</option>':'<option value="">Seleccionar Series</option>')+(g?.series||[]).map(x=>`<option value="${escapeHtml(x.code)}"${x.code===selected?' selected':''}>${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');
+    el.disabled=!(categoryCode&&groupCode);
+  }
+  function selectedHierarchyPayload(categoryCode,groupCode,seriesCode) {
+    const c=getCategory(categoryCode), g=getGroup(categoryCode,groupCode), s=getSeries(categoryCode,groupCode,seriesCode);
+    return {category_code:c?.code||null,category_name:c?.name||null,group_code:g?.code||null,group_name:g?.name||null,series_code:s?.code||null,series_name:s?.name||null};
+  }
+
   function showView(name) {
-    views.forEach(v => {
-      const view = $(v + 'View');
-      if (view) view.classList.toggle('active-view', v === name);
-    });
+    views.forEach(v => $(v + 'View').classList.toggle('active-view', v === name));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
     if ($('pageTitle')) $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
     if (name === 'new') prepareNextCode();
   }
 
   function setAuthGate(open) {
-    const gate = $('authGate');
-    if (gate) gate.classList.toggle('auth-gate-hidden', !open);
+    $('authGate').classList.toggle('auth-gate-hidden', !open);
     document.body.classList.toggle('auth-locked', open);
   }
 
   function showRecoveryMode() {
     setAuthGate(true);
-    if ($('loginForm')) $('loginForm').hidden = true;
-    if ($('recoveryForm')) $('recoveryForm').hidden = false;
-    if ($('authTitle')) $('authTitle').textContent = 'Crear nueva contraseña';
+    $('loginForm').hidden = true;
+    $('recoveryForm').hidden = false;
+    $('authTitle').textContent = 'Crear nueva contraseña';
     const intro = document.querySelector('.auth-copy p:last-child');
     if (intro) intro.textContent = 'Define una nueva contraseña para tu cuenta autorizada.';
-    if ($('recoveryStatus')) $('recoveryStatus').textContent = '';
+    $('recoveryStatus').textContent = '';
   }
 
   function showLoginMode() {
-    if ($('loginForm')) $('loginForm').hidden = false;
-    if ($('recoveryForm')) $('recoveryForm').hidden = true;
-    if ($('authTitle')) $('authTitle').textContent = 'Iniciar sesión';
+    $('loginForm').hidden = false;
+    $('recoveryForm').hidden = true;
+    $('authTitle').textContent = 'Iniciar sesión';
     const intro = document.querySelector('.auth-copy p:last-child');
     if (intro) intro.textContent = 'Accede con el usuario autorizado de Supabase para consultar y registrar integraciones.';
   }
@@ -62,12 +82,12 @@
   function setSessionUI(session) {
     currentSession = session || null;
     if (session?.user) {
-      if ($('sessionEmail')) $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
-      if ($('sessionBox')) $('sessionBox').hidden = false;
+      $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
+      $('sessionBox').hidden = false;
       setAuthGate(false);
     } else {
-      if ($('sessionEmail')) $('sessionEmail').textContent = '';
-      if ($('sessionBox')) $('sessionBox').hidden = true;
+      $('sessionEmail').textContent = '';
+      $('sessionBox').hidden = true;
       setAuthGate(true);
       records = [];
       renderAll();
@@ -76,7 +96,7 @@
 
   async function initializeAuth() {
     if (!supabaseClient) {
-      if ($('loginStatus')) $('loginStatus').textContent = 'Falta configurar Supabase en config.js.';
+      $('loginStatus').textContent = 'Falta configurar Supabase en config.js.';
       setAuthGate(true);
       return;
     }
@@ -104,120 +124,81 @@
   }
 
   async function signIn(email, password) {
-    if (!supabaseClient) {
-      if ($('loginStatus')) $('loginStatus').textContent = 'Supabase no está configurado.';
-      return;
-    }
-    if ($('loginStatus')) $('loginStatus').textContent = 'Validando acceso...';
-    if ($('loginButton')) $('loginButton').disabled = true;
+    $('loginStatus').textContent = 'Validando acceso...';
+    $('loginButton').disabled = true;
     try {
       const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) throw error;
       setSessionUI(data.session);
-      if ($('loginStatus')) $('loginStatus').textContent = '';
-      if ($('loginForm')) $('loginForm').reset();
+      $('loginStatus').textContent = '';
+      $('loginForm').reset();
       await loadRecords();
     } catch (err) {
-      console.error('signIn:', err);
+      console.error(err);
       const msg = String(err?.message || '');
-      if ($('loginStatus')) $('loginStatus').textContent = /invalid login credentials/i.test(msg)
-        ? 'Correo o contraseña incorrectos.'
-        : 'No se pudo iniciar sesión. Revisa el usuario y la conexión.';
+      $('loginStatus').textContent =
+        /invalid login credentials/i.test(msg)
+          ? 'Correo o contraseña incorrectos.'
+          : 'No se pudo iniciar sesión. Revisa el usuario y la conexión.';
     } finally {
-      if ($('loginButton')) $('loginButton').disabled = false;
+      $('loginButton').disabled = false;
     }
   }
 
   async function signOut() {
     if (!supabaseClient) return;
-    try {
-      const { error } = await supabaseClient.auth.signOut();
+    await supabaseClient.auth.signOut();
+    setSessionUI(null);
+    showView('dashboard');
+  }
+
+  async function fetchAllRecords() {
+    const pageSize = 1000;
+    let from = 0;
+    let all = [];
+    while (true) {
+      const { data, error } = await supabaseClient
+        .from('integrations')
+        .select('*')
+        .order('integration_year', { ascending: false })
+        .order('sequence_number', { ascending: false })
+        .range(from, from + pageSize - 1);
       if (error) throw error;
-    } catch (err) {
-      console.error('signOut:', err);
+      const batch = data || [];
+      all = all.concat(batch);
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
+
+  async function loadRecords() {
+    if (!supabaseClient || !currentSession) {
+      records = [];
+      renderAll();
+      return;
+    }
+    $('refreshButton').disabled = true;
+    $('refreshButton').textContent = 'Actualizando...';
+    try {
+      records = await fetchAllRecords();
+      if ($('loginStatus')) $('loginStatus').textContent = '';
+      renderAll();
+    } catch (error) {
+      console.error('loadRecords:', error);
+      if (/jwt|auth|permission|row-level|rls/i.test(String(error?.message || ''))) {
+        $('loginStatus').textContent = 'La sesión no tiene permiso para consultar los registros.';
+      }
     } finally {
-      setSessionUI(null);
-      showLoginMode();
-      showView('dashboard');
+      $('refreshButton').disabled = false;
+      $('refreshButton').textContent = 'Actualizar';
     }
   }
 
-  function getCategory(code) {
-    return itemMasterHierarchy.find(item => item.code === code) || null;
-  }
-
-  function getGroup(categoryCode, groupCode) {
-    return getCategory(categoryCode)?.groups?.find(item => item.code === groupCode) || null;
-  }
-
-  function getSeries(categoryCode, groupCode, seriesCode) {
-    return getGroup(categoryCode, groupCode)?.series?.find(item => item.code === seriesCode) || null;
-  }
-
-  function hierarchyLabel(record, compact = false) {
-    if (!record?.category_code) return 'Sin Item Master';
-    if (!record?.group_code) return compact ? record.category_code : `${record.category_code} — ${record.category_name || ''}`;
-    if (!record?.series_code) return compact
-      ? `${record.group_code} · ${record.group_name || ''}`
-      : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''}`;
-    return compact
-      ? `${record.group_code} · ${record.series_code} — ${record.series_name || ''}`
-      : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''} / ${record.series_code} — ${record.series_name || ''}`;
-  }
-
-  function isMapped(record) {
-    return !!(record?.category_code && record?.group_code && record?.series_code);
-  }
-
-  function populateCategorySelect(selectId, selected = '', allowBlank = true) {
-    const select = $(selectId);
-    if (!select) return;
-    const first = allowBlank
-      ? '<option value="">Sin Category</option>'
-      : '<option value="">Seleccionar Category</option>';
-    select.innerHTML = first + itemMasterHierarchy.map(item =>
-      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
-    ).join('');
-  }
-
-  function populateGroupSelect(selectId, categoryCode, selected = '', allowBlank = true) {
-    const select = $(selectId);
-    if (!select) return;
-    const category = getCategory(categoryCode);
-    const first = allowBlank
-      ? '<option value="">Sin Group</option>'
-      : '<option value="">Seleccionar Group</option>';
-    select.innerHTML = first + (category?.groups || []).map(item =>
-      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
-    ).join('');
-    select.disabled = !categoryCode;
-  }
-
-  function populateSeriesSelect(selectId, categoryCode, groupCode, selected = '', allowBlank = true) {
-    const select = $(selectId);
-    if (!select) return;
-    const group = getGroup(categoryCode, groupCode);
-    const first = allowBlank
-      ? '<option value="">Sin Series</option>'
-      : '<option value="">Seleccionar Series</option>';
-    select.innerHTML = first + (group?.series || []).map(item =>
-      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
-    ).join('');
-    select.disabled = !(categoryCode && groupCode);
-  }
-
-  function selectedHierarchyPayload(categoryCode, groupCode, seriesCode) {
-    const category = getCategory(categoryCode);
-    const group = getGroup(categoryCode, groupCode);
-    const series = getSeries(categoryCode, groupCode, seriesCode);
-    return {
-      category_code: category?.code || null,
-      category_name: category?.name || null,
-      group_code: group?.code || null,
-      group_name: group?.name || null,
-      series_code: series?.code || null,
-      series_name: series?.name || null
-    };
+  function renderAll() {
+    renderDashboard();
+    fillFilters();
+    renderTable();
   }
 
   function isRecordComplete(r) {
@@ -314,7 +295,7 @@
 
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))]
       .sort((a,b) => a-b);
-    const groups = itemMasterHierarchy.flatMap(category => category.groups || []).filter((g, i, arr) => arr.findIndex(x => x.code === g.code) === i);
+    const groups = itemMasterHierarchy.flatMap(c => c.groups || []).filter((g,i,a) => a.findIndex(x => x.code === g.code) === i);
 
     for (const id of ['dashboardYearFilter']) {
       if ($(id)) {
@@ -325,9 +306,7 @@
     }
     if ($('dashboardGroupFilter')) {
       const old = $('dashboardGroupFilter').value;
-      $('dashboardGroupFilter').innerHTML =
-        '<option value="">Todos los Group</option>' +
-        groups.map(g => `<option value="${escapeHtml(g.code)}">${escapeHtml(g.code)} — ${escapeHtml(g.name)}</option>`).join('');
+      $('dashboardGroupFilter').innerHTML = '<option value="">Todos los Group</option>' + groups.map(g => `<option value="${escapeHtml(g.code)}">${escapeHtml(g.code)} — ${escapeHtml(g.name)}</option>`).join('');
       $('dashboardGroupFilter').value = old;
     }
 
@@ -371,7 +350,7 @@
   function fillFilters() {
     const currentYear = new Date().getFullYear();
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))].sort((a,b) => b-a);
-    const groups = itemMasterHierarchy.flatMap(category => category.groups || []).filter((g, i, arr) => arr.findIndex(x => x.code === g.code) === i);
+    const groups = itemMasterHierarchy.flatMap(c => c.groups || []).filter((g,i,a) => a.findIndex(x => x.code === g.code) === i);
     const y = $('yearFilter').value, g = $('groupFilter').value;
 
     $('yearFilter').innerHTML = '<option value="">Todos los años</option>' + years.map(v => `<option value="${v}">${v}</option>`).join('');
@@ -456,26 +435,17 @@
   }
 
   function initializeNewHierarchy() {
-    populateCategorySelect('categoryCode', '', false);
-    populateGroupSelect('groupCode', '', '', false);
-    populateSeriesSelect('seriesCode', '', '', '', false);
+    populateCategorySelect('categoryCode','',false);
+    populateGroupSelect('groupCode','','',false);
+    populateSeriesSelect('seriesCode','','','',false);
   }
 
   function setEditClassification(record) {
-    populateCategorySelect('editCategoryCode', record.category_code || '', true);
-    populateGroupSelect('editGroupCode', record.category_code || '', record.group_code || '', true);
-    populateSeriesSelect(
-      'editSeriesCode',
-      record.category_code || '',
-      record.group_code || '',
-      record.series_code || '',
-      true
-    );
-    const state = $('editHierarchyState');
-    if (state) {
-      state.textContent = isMapped(record) ? `${record.series_code} asignada` : 'Sin Item Master';
-      state.className = `manual-badge${isMapped(record) ? ' assigned' : ''}`;
-    }
+    populateCategorySelect('editCategoryCode',record.category_code||'',true);
+    populateGroupSelect('editGroupCode',record.category_code||'',record.group_code||'',true);
+    populateSeriesSelect('editSeriesCode',record.category_code||'',record.group_code||'',record.series_code||'',true);
+    const state=$('editHierarchyState');
+    if(state){ state.textContent=isMapped(record)?`${record.series_code} asignada`:'Sin Item Master'; state.className=`manual-badge${isMapped(record)?' assigned':''}`; }
   }
 
   async function codeExistsInAnotherRecord(code, currentId) {
@@ -571,37 +541,14 @@
   });
 
   $('editCategoryCode').addEventListener('change', () => {
-    populateGroupSelect('editGroupCode', $('editCategoryCode').value, '', true);
-    populateSeriesSelect('editSeriesCode', '', '', '', true);
-    const state = $('editHierarchyState');
-    if (state) {
-      state.textContent = $('editCategoryCode').value ? 'Selecciona Group' : 'Sin Item Master';
-      state.className = 'manual-badge';
-    }
+    populateGroupSelect('editGroupCode',$('editCategoryCode').value,'',true);
+    populateSeriesSelect('editSeriesCode','','','',true);
   });
-
   $('editGroupCode').addEventListener('change', () => {
-    populateSeriesSelect(
-      'editSeriesCode',
-      $('editCategoryCode').value,
-      $('editGroupCode').value,
-      '',
-      true
-    );
-    const state = $('editHierarchyState');
-    if (state) {
-      state.textContent = $('editGroupCode').value ? 'Selecciona Series' : 'Sin Group';
-      state.className = 'manual-badge';
-    }
+    populateSeriesSelect('editSeriesCode',$('editCategoryCode').value,$('editGroupCode').value,'',true);
   });
-
   $('editSeriesCode').addEventListener('change', () => {
-    const state = $('editHierarchyState');
-    if (!state) return;
-    state.textContent = $('editSeriesCode').value
-      ? `${$('editSeriesCode').value} asignada`
-      : 'Sin Series';
-    state.className = `manual-badge${$('editSeriesCode').value ? ' assigned' : ''}`;
+    const state=$('editHierarchyState'); if(state){state.textContent=$('editSeriesCode').value?`${$('editSeriesCode').value} asignada`:'Sin Series'; state.className=`manual-badge${$('editSeriesCode').value?' assigned':''}`;}
   });
 
   $('editIntegrationForm').addEventListener('submit', async e => {
@@ -777,18 +724,11 @@
     el.addEventListener('change', handler);
   });
   $('categoryCode').addEventListener('change', () => {
-    populateGroupSelect('groupCode', $('categoryCode').value, '', false);
-    populateSeriesSelect('seriesCode', '', '', '', false);
+    populateGroupSelect('groupCode',$('categoryCode').value,'',false);
+    populateSeriesSelect('seriesCode','','','',false);
   });
-
   $('groupCode').addEventListener('change', () => {
-    populateSeriesSelect(
-      'seriesCode',
-      $('categoryCode').value,
-      $('groupCode').value,
-      '',
-      false
-    );
+    populateSeriesSelect('seriesCode',$('categoryCode').value,$('groupCode').value,'',false);
   });
 
   function escapeHtml(v='') {
