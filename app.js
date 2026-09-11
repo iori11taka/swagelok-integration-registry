@@ -448,6 +448,38 @@
     if(state){ state.textContent=isMapped(record)?`${record.series_code} asignada`:'Sin Item Master'; state.className=`manual-badge${isMapped(record)?' assigned':''}`; }
   }
 
+  function openEditModal(id) {
+    const record = records.find(r => String(r.id) === String(id));
+    if (!record) {
+      console.error('openEditModal: registro no encontrado', id);
+      return;
+    }
+
+    originalEditCode = record.code || '';
+    $('editId').value = record.id ?? '';
+    $('editCode').value = record.code || '';
+    $('editClient').value = record.client || '';
+    $('editDescription').value = record.description || '';
+    $('editResponsible').value = record.responsible || '';
+    $('editNotes').value = record.notes || '';
+    $('editFormStatus').textContent = '';
+    $('saveEditButton').disabled = false;
+    setEditClassification(record);
+
+    $('editModal').hidden = false;
+    document.body.classList.add('modal-open');
+    requestAnimationFrame(() => $('editCode')?.focus());
+  }
+
+  function closeEditModal() {
+    if (!$('editModal')) return;
+    $('editModal').hidden = true;
+    document.body.classList.remove('modal-open');
+    $('editFormStatus').textContent = '';
+    $('editIntegrationForm')?.reset();
+    originalEditCode = '';
+  }
+
   async function codeExistsInAnotherRecord(code, currentId) {
     const normalized = String(code || '').trim();
     if (!normalized) return false;
