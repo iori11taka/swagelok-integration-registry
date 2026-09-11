@@ -83,7 +83,7 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.8.4</span>
+        <span>v2.8.5</span>
       </div>
 
       <div class="sidebar-footer">
@@ -304,10 +304,10 @@
         </div>
 
         <form id="integrationForm" class="form-grid">
-          <label>Código de integración<input id="code" name="code" readonly placeholder="Se generará automáticamente" /></label>
-          <label>Cliente<input id="client" name="client" required /></label>
-          <label class="full">Descripción<textarea id="description" name="description" required rows="4"></textarea></label>
-          <label>Responsable<input id="responsible" name="responsible" required /></label>
+          <label><span class="field-label">Código de integración <span class="required-mark" aria-hidden="true">*</span></span><input id="code" name="code" readonly required placeholder="Se generará automáticamente" /></label>
+          <label>Cliente<input id="client" name="client" /></label>
+          <label class="full"><span class="field-label">Descripción <span class="required-mark" aria-hidden="true">*</span></span><textarea id="description" name="description" required rows="4"></textarea></label>
+          <label>Responsable<input id="responsible" name="responsible" /></label>
 
           <div class="manual-classification-intro full">
             <div>
@@ -317,19 +317,19 @@
             <span class="manual-badge">Selección manual</span>
           </div>
 
-          <label>Category
+          <label><span class="field-label">Category <span class="required-mark" aria-hidden="true">*</span></span>
             <select id="categoryCode" name="categoryCode" required>
               <option value="">Seleccionar Category</option>
             </select>
           </label>
 
-          <label>Group
+          <label><span class="field-label">Group <span class="required-mark" aria-hidden="true">*</span></span>
             <select id="groupCode" name="groupCode" required disabled>
               <option value="">Seleccionar Group</option>
             </select>
           </label>
 
-          <label>Series
+          <label><span class="field-label">Series <span class="required-mark" aria-hidden="true">*</span></span>
             <select id="seriesCode" name="seriesCode" required disabled>
               <option value="">Seleccionar Series</option>
             </select>
@@ -339,7 +339,7 @@
           <label class="full">Observaciones<textarea id="notes" name="notes" rows="3"></textarea></label>
           <div class="form-actions full">
             <span id="formStatus" class="status"></span>
-            <button class="button primary" type="submit">Guardar integración</button>
+            <button id="saveIntegrationButton" class="button primary" type="submit" disabled>Guardar integración</button>
           </div>
         </form>
       </div>
@@ -347,7 +347,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8.4</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8.5</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>
@@ -431,6 +431,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="item-master-hierarchy.js"></script>
-  <script src="app.js?v=284"></script>
+  <script src="app.js?v=285"></script>
 </body>
 </html>

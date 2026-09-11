@@ -2777,3 +2777,48 @@ body {
     grid-column: 1 !important;
   }
 }
+
+/* =========================================================
+   V2.8.5 — Validación obligatoria y alineación de edición
+   ========================================================= */
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.required-mark {
+  color: #d72b2b;
+  font-weight: 800;
+}
+
+#integrationForm .field-invalid {
+  border-color: #d72b2b !important;
+  box-shadow: 0 0 0 3px rgba(215, 43, 43, .10) !important;
+  background: #fffafa;
+}
+
+#saveIntegrationButton:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Evita que los campos de la primera fila del modal se estiren
+   por la ayuda situada debajo del código. */
+.edit-form > label:not(.full) {
+  align-self: start;
+  align-content: start;
+}
+
+.edit-form input,
+.edit-form select {
+  min-height: 44px;
+  height: 44px;
+}
+
+#editClient,
+#editCode {
+  min-height: 44px;
+  height: 44px;
+}

@@ -1,0 +1,17 @@
+V2.8.5 - VALIDACIÓN DE CREACIÓN + ALINEACIÓN DE CLIENTE
+
+Cambios:
+1. El campo Cliente del modal de edición queda alineado con Código de integración.
+2. Para CREAR una nueva INT son obligatorios exclusivamente:
+   - Código de integración
+   - Descripción
+   - Category
+   - Group
+   - Series
+3. Cliente y Responsable ya no bloquean la creación si están vacíos.
+4. El botón Guardar integración permanece deshabilitado hasta completar los cinco campos obligatorios.
+5. Existe una segunda validación al enviar el formulario: aunque se intente forzar el submit, no se crea el registro si falta alguno de los campos obligatorios.
+6. Si no se puede generar un código válido del tipo INT_###-##, la creación queda bloqueada.
+
+No incluye config.js. Conservar el config.js actual.
+No requiere ejecutar una nueva migración SQL.

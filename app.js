@@ -425,13 +425,48 @@
     });
   }
 
+  function getNewIntegrationRequiredState() {
+    const code = ($('code')?.value || '').trim();
+    const description = ($('description')?.value || '').trim();
+    const categoryCode = $('categoryCode')?.value || '';
+    const groupCode = $('groupCode')?.value || '';
+    const seriesCode = $('seriesCode')?.value || '';
+    const hasValidCode = /^INT_\d+-\d{2}$/i.test(code);
+    return { code, description, categoryCode, groupCode, seriesCode, hasValidCode };
+  }
+
+  function updateCreateButtonState() {
+    const state = getNewIntegrationRequiredState();
+    const ready = state.hasValidCode && !!state.description && !!state.categoryCode && !!state.groupCode && !!state.seriesCode;
+    const button = $('saveIntegrationButton');
+    if (button) button.disabled = !ready;
+    return ready;
+  }
+
+  function markCreateRequiredFields(state) {
+    const checks = [
+      ['code', state.hasValidCode],
+      ['description', !!state.description],
+      ['categoryCode', !!state.categoryCode],
+      ['groupCode', !!state.groupCode],
+      ['seriesCode', !!state.seriesCode]
+    ];
+    checks.forEach(([id, valid]) => $(id)?.classList.toggle('field-invalid', !valid));
+  }
+
   async function prepareNextCode() {
+    const codeInput = $('code');
     if (!supabaseClient || !currentSession) {
-      $('code').value = 'Inicia sesión para generar código';
+      if (codeInput) codeInput.value = '';
+      updateCreateButtonState();
       return;
     }
     const { data, error } = await supabaseClient.rpc('preview_next_integration_code');
-    $('code').value = error ? 'Se asignará al guardar' : data;
+    if (codeInput) codeInput.value = error ? '' : (data || '');
+    if (error && $('formStatus')) {
+      $('formStatus').textContent = 'No se pudo generar el código de integración. No se habilitará el registro hasta tener un código válido.';
+    }
+    updateCreateButtonState();
   }
 
   function initializeNewHierarchy() {
@@ -666,20 +701,21 @@
 
   $('integrationForm').addEventListener('submit', async e => {
     e.preventDefault();
-    $('formStatus').textContent = 'Guardando...';
-    const categoryCode = $('categoryCode').value;
-    const groupCode = $('groupCode').value;
-    const seriesCode = $('seriesCode').value;
 
-    if (!categoryCode || !groupCode || !seriesCode) {
-      $('formStatus').textContent = 'Selecciona Category, Group y Series.';
+    const required = getNewIntegrationRequiredState();
+    markCreateRequiredFields(required);
+    if (!updateCreateButtonState()) {
+      $('formStatus').textContent = 'No se puede crear la INT. Completa Código de integración, Descripción, Category, Group y Series.';
       return;
     }
 
+    $('formStatus').textContent = 'Guardando...';
+    const { categoryCode, groupCode, seriesCode } = required;
+
     const payload = {
-      description: $('description').value.trim(),
-      client: $('client').value.trim(),
-      responsible: $('responsible').value.trim(),
+      description: required.description,
+      client: $('client').value.trim() || null,
+      responsible: $('responsible').value.trim() || null,
       ...selectedHierarchyPayload(categoryCode, groupCode, seriesCode),
       notes: $('notes').value.trim() || null
     };
@@ -688,6 +724,8 @@
       $('formStatus').textContent = `Guardado: ${created.code || created}`;
       e.target.reset();
       initializeNewHierarchy();
+      ['code','description','categoryCode','groupCode','seriesCode'].forEach(id => $(id)?.classList.remove('field-invalid'));
+      updateCreateButtonState();
       await loadRecords();
       await prepareNextCode();
     } catch (err) {
@@ -758,9 +796,21 @@
   $('categoryCode').addEventListener('change', () => {
     populateGroupSelect('groupCode',$('categoryCode').value,'',false);
     populateSeriesSelect('seriesCode','','','',false);
+    $('categoryCode').classList.remove('field-invalid');
+    updateCreateButtonState();
   });
   $('groupCode').addEventListener('change', () => {
     populateSeriesSelect('seriesCode',$('categoryCode').value,$('groupCode').value,'',false);
+    $('groupCode').classList.remove('field-invalid');
+    updateCreateButtonState();
+  });
+  $('seriesCode').addEventListener('change', () => {
+    $('seriesCode').classList.remove('field-invalid');
+    updateCreateButtonState();
+  });
+  $('description').addEventListener('input', () => {
+    $('description').classList.remove('field-invalid');
+    updateCreateButtonState();
   });
 
   function escapeHtml(v='') {
@@ -772,5 +822,6 @@
   }
 
   initializeNewHierarchy();
+  updateCreateButtonState();
   initializeAuth();
 })();
