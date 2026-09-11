@@ -10,6 +10,35 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <div id="authGate" class="auth-gate">
+    <section class="auth-card" aria-labelledby="authTitle">
+      <div class="auth-brand">
+        <div class="brand-mark">SW</div>
+        <div>
+          <strong>Swagelok Perú</strong>
+          <span>Registro de Integraciones</span>
+        </div>
+      </div>
+      <div class="auth-copy">
+        <p class="eyebrow">PORTAL INTERNO</p>
+        <h1 id="authTitle">Iniciar sesión</h1>
+        <p>Accede con el usuario autorizado de Supabase para consultar y registrar integraciones.</p>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <label>Correo electrónico
+          <input id="loginEmail" type="email" autocomplete="username" required placeholder="nombre@empresa.com" />
+        </label>
+        <label>Contraseña
+          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••" />
+        </label>
+        <div id="loginStatus" class="auth-status"></div>
+        <button id="loginButton" class="button primary auth-submit" type="submit">Ingresar</button>
+      </form>
+      <p class="auth-note">Las cuentas son administradas por el responsable del portal. No hay registro público.</p>
+    </section>
+  </div>
+
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">SW</div>
@@ -32,7 +61,13 @@
         <p class="eyebrow">PORTAL INTERNO</p>
         <h1 id="pageTitle">Registro de Integraciones</h1>
       </div>
-      <button id="refreshButton" class="button ghost">Actualizar</button>
+      <div class="topbar-actions">
+        <div id="sessionBox" class="session-box" hidden>
+          <span id="sessionEmail"></span>
+          <button id="logoutButton" class="button mini ghost" type="button">Cerrar sesión</button>
+        </div>
+        <button id="refreshButton" class="button ghost">Actualizar</button>
+      </div>
     </header>
 
     <section id="dashboardView" class="view active-view">

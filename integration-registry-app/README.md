@@ -109,3 +109,17 @@ Esta versión incluye un motor local de clasificación construido a partir del r
 - Se normalizaron variantes evidentes del histórico como “CENTRALES DE GASES” / “CENTRAL DE GASES” y “CENTRAL PARA 2 BOTELLAS” / “CENTRAL PARA DOS BOTELLAS”.
 
 Para probar rápidamente: escriba `Central de gas para una botella, regulador KPR, entrada 500 psi, salida 100 psi` y la app propondrá `CENTRAL DE GASES > CENTRAL PARA UNA BOTELLA > CENTRAL PARA UNA BOTELLA`.
+
+
+## V1.2 - Supabase Auth
+
+La aplicación ahora exige sesión antes de consultar o registrar integraciones.
+
+1. En Supabase abre **Authentication > Users**.
+2. Crea manualmente los usuarios autorizados con correo y contraseña.
+3. No es necesario habilitar registro público.
+4. `config.js` usa únicamente la **Publishable key**; nunca coloques una Secret key en el frontend.
+5. El frontend carga el histórico por páginas para superar el límite de 1000 filas de la API y mostrar los 2,422+ registros.
+6. Al cerrar sesión se vacían los datos visibles y vuelve la pantalla de acceso.
+
+El esquema SQL debe mantener las políticas RLS para el rol `authenticated`.

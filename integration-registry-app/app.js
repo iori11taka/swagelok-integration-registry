@@ -2,16 +2,21 @@
   'use strict';
 
   const cfg = window.APP_CONFIG || {};
-  const supabaseClient = (cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY)
-    ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY)
+  const supabaseUrl = cfg.supabaseUrl || cfg.SUPABASE_URL || '';
+  const supabaseKey = cfg.supabaseAnonKey || cfg.SUPABASE_ANON_KEY || '';
+  const hasSupabaseConfig = /^https:\/\/.+\.supabase\.co$/i.test(supabaseUrl) && !!supabaseKey && !/YOUR_|AQUI_/i.test(supabaseKey);
+  const supabaseClient = hasSupabaseConfig
+    ? window.supabase.createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      })
     : null;
-  const classifier = window.ClassificationEngine;
 
+  const classifier = window.ClassificationEngine;
   let records = [];
   let classificationTimer = null;
   let lastAutoClassification = null;
+  let currentSession = null;
   const views = ['dashboard', 'records', 'new'];
-
   const $ = id => document.getElementById(id);
 
   function showView(name) {
@@ -21,19 +26,114 @@
     if (name === 'new') prepareNextCode();
   }
 
-  async function loadRecords() {
+  function setAuthGate(open) {
+    $('authGate').classList.toggle('auth-gate-hidden', !open);
+    document.body.classList.toggle('auth-locked', open);
+  }
+
+  function setSessionUI(session) {
+    currentSession = session || null;
+    if (session?.user) {
+      $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
+      $('sessionBox').hidden = false;
+      setAuthGate(false);
+    } else {
+      $('sessionEmail').textContent = '';
+      $('sessionBox').hidden = true;
+      setAuthGate(true);
+      records = [];
+      renderAll();
+    }
+  }
+
+  async function initializeAuth() {
     if (!supabaseClient) {
-      records = JSON.parse(localStorage.getItem('integration-demo-records') || '[]');
+      $('loginStatus').textContent = 'Falta configurar Supabase en config.js.';
+      setAuthGate(true);
+      return;
+    }
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) console.error('getSession:', error);
+    setSessionUI(data?.session || null);
+
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+      setSessionUI(session);
+      if (session) await loadRecords();
+    });
+
+    if (data?.session) await loadRecords();
+  }
+
+  async function signIn(email, password) {
+    $('loginStatus').textContent = 'Validando acceso...';
+    $('loginButton').disabled = true;
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      setSessionUI(data.session);
+      $('loginStatus').textContent = '';
+      $('loginForm').reset();
+      await loadRecords();
+    } catch (err) {
+      console.error(err);
+      const msg = String(err?.message || '');
+      $('loginStatus').textContent =
+        /invalid login credentials/i.test(msg)
+          ? 'Correo o contraseña incorrectos.'
+          : 'No se pudo iniciar sesión. Revisa el usuario y la conexión.';
+    } finally {
+      $('loginButton').disabled = false;
+    }
+  }
+
+  async function signOut() {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+    setSessionUI(null);
+    showView('dashboard');
+  }
+
+  async function fetchAllRecords() {
+    const pageSize = 1000;
+    let from = 0;
+    let all = [];
+    while (true) {
+      const { data, error } = await supabaseClient
+        .from('integrations')
+        .select('*')
+        .order('integration_year', { ascending: false })
+        .order('sequence_number', { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const batch = data || [];
+      all = all.concat(batch);
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
+
+  async function loadRecords() {
+    if (!supabaseClient || !currentSession) {
+      records = [];
       renderAll();
       return;
     }
-    const { data, error } = await supabaseClient
-      .from('integrations')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) return console.error(error);
-    records = data || [];
-    renderAll();
+    $('refreshButton').disabled = true;
+    $('refreshButton').textContent = 'Actualizando...';
+    try {
+      records = await fetchAllRecords();
+      renderAll();
+    } catch (error) {
+      console.error('loadRecords:', error);
+      if (/jwt|auth|permission|row-level|rls/i.test(String(error?.message || ''))) {
+        $('loginStatus').textContent = 'La sesión no tiene permiso para consultar los registros.';
+      }
+    } finally {
+      $('refreshButton').disabled = false;
+      $('refreshButton').textContent = 'Actualizar';
+    }
   }
 
   function renderAll() {
@@ -44,16 +144,20 @@
 
   function renderDashboard() {
     const currentYear = new Date().getFullYear();
-    $('kpiTotal').textContent = records.length;
-    $('kpiYear').textContent = records.filter(r => Number(r.integration_year) === currentYear).length;
-    $('kpiClients').textContent = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size;
-    $('kpiIncomplete').textContent = records.filter(r => !r.client || !r.responsible || !r.family).length;
+    $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
+    $('kpiYear').textContent = records.filter(r => Number(r.integration_year) === currentYear).length.toLocaleString('es-PE');
+    $('kpiClients').textContent = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size.toLocaleString('es-PE');
+    $('kpiIncomplete').textContent = records.filter(r =>
+      !r.client || !r.responsible || !r.family || !r.subfamily || !r.subsubfamily ||
+      /incompleta|revisi/i.test(r.review_status || '')
+    ).length.toLocaleString('es-PE');
+
     $('recentList').innerHTML = records.slice(0, 8).map(r => `
       <div class="recent-item">
         <div class="code-pill">${escapeHtml(r.code)}</div>
         <div><strong>${escapeHtml(r.description || 'Sin descripción')}</strong><div class="muted">${escapeHtml(r.client || 'Cliente no definido')}</div></div>
-        <div class="muted">${formatDate(r.created_at)}</div>
-      </div>`).join('') || '<div class="muted">Aún no hay registros.</div>';
+        <div class="muted">${r.is_legacy ? `Histórico · ${escapeHtml(r.integration_year || '')}` : formatDate(r.created_at)}</div>
+      </div>`).join('') || '<div class="muted">Aún no hay registros disponibles.</div>';
   }
 
   function fillFilters() {
@@ -62,7 +166,8 @@
     const y = $('yearFilter').value, f = $('familyFilter').value;
     $('yearFilter').innerHTML = '<option value="">Todos los años</option>' + years.map(v => `<option value="${v}">${v}</option>`).join('');
     $('familyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(v => `<option>${escapeHtml(v)}</option>`).join('');
-    $('yearFilter').value = y; $('familyFilter').value = f;
+    $('yearFilter').value = y;
+    $('familyFilter').value = f;
   }
 
   function renderTable() {
@@ -79,17 +184,13 @@
       <td>${escapeHtml(r.client || '—')}</td>
       <td>${escapeHtml(r.responsible || '—')}</td>
       <td>${escapeHtml(r.family || '—')}</td>
-      <td>${formatDate(r.created_at)}</td>
+      <td>${r.is_legacy ? escapeHtml(String(r.integration_year || '—')) : formatDate(r.created_at)}</td>
     </tr>`).join('');
   }
 
   async function prepareNextCode() {
-    if (!supabaseClient) {
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      const nums = records.filter(r => Number(r.integration_year) === year).map(r => Number(r.sequence_number || 0));
-      const next = (Math.max(0, ...nums) + 1).toString().padStart(3, '0');
-      $('code').value = `INT_${next}-${yy}`;
+    if (!supabaseClient || !currentSession) {
+      $('code').value = 'Inicia sesión para generar código';
       return;
     }
     const { data, error } = await supabaseClient.rpc('preview_next_integration_code');
@@ -148,10 +249,7 @@
 
   function runClassification() {
     const description = $('description').value.trim();
-    if (!description) {
-      updateClassificationUI(null);
-      return;
-    }
+    if (!description) return updateClassificationUI(null);
     applyClassification(classifier?.classify(description) || null);
   }
 
@@ -161,27 +259,37 @@
   }
 
   async function createIntegration(payload) {
-    if (!supabaseClient) {
-      const year = new Date().getFullYear();
-      const nums = records.filter(r => Number(r.integration_year) === year).map(r => Number(r.sequence_number || 0));
-      const sequence = Math.max(0, ...nums) + 1;
-      const item = { id: crypto.randomUUID(), code: `INT_${String(sequence).padStart(3,'0')}-${String(year).slice(-2)}`, integration_year: year, sequence_number: sequence, created_at: new Date().toISOString(), ...payload };
-      records.unshift(item); localStorage.setItem('integration-demo-records', JSON.stringify(records)); return item;
-    }
+    if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
     const { data, error } = await supabaseClient.rpc('create_integration', { p_data: payload });
     if (error) throw error;
     return data;
   }
 
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!supabaseClient) {
+      $('loginStatus').textContent = 'Supabase no está configurado.';
+      return;
+    }
+    await signIn($('loginEmail').value.trim(), $('loginPassword').value);
+  });
+
+  $('logoutButton').addEventListener('click', signOut);
+
   $('integrationForm').addEventListener('submit', async e => {
     e.preventDefault();
     $('formStatus').textContent = 'Guardando...';
+    const manualClassification = !lastAutoClassification;
     const payload = {
-      description: $('description').value.trim(), client: $('client').value.trim(), responsible: $('responsible').value.trim(),
-      family: $('family').value || null, subfamily: $('subfamily').value || null,
-      subsubfamily: $('subsubfamily').value || null, notes: $('notes').value.trim() || null,
-      classification_confidence: lastAutoClassification?.confidence || null,
-      classification_source: lastAutoClassification?.source || null
+      description: $('description').value.trim(),
+      client: $('client').value.trim(),
+      responsible: $('responsible').value.trim(),
+      family: $('family').value || null,
+      subfamily: $('subfamily').value || null,
+      subsubfamily: $('subsubfamily').value || null,
+      notes: $('notes').value.trim() || null,
+      classification_confidence: manualClassification ? null : (lastAutoClassification?.confidence || null),
+      classification_source: manualClassification ? 'manual' : 'automatic'
     };
     try {
       const created = await createIntegration(payload);
@@ -194,7 +302,10 @@
       await prepareNextCode();
     } catch (err) {
       console.error(err);
-      $('formStatus').textContent = 'No se pudo guardar. Revisa Supabase y la consola.';
+      $('formStatus').textContent =
+        err?.message === 'AUTH_REQUIRED'
+          ? 'Debes iniciar sesión.'
+          : 'No se pudo guardar. Revisa Supabase y la consola.';
     }
   });
 
@@ -203,10 +314,10 @@
   $('newFromRecords').addEventListener('click', () => showView('new'));
   $('refreshButton').addEventListener('click', loadRecords);
   ['searchInput','yearFilter','familyFilter'].forEach(id => $(id).addEventListener('input', renderTable));
-
   $('description').addEventListener('input', scheduleClassification);
   $('description').addEventListener('blur', runClassification);
   $('classifyButton').addEventListener('click', runClassification);
+
   $('family').addEventListener('change', () => {
     populateSubfamilies($('family').value, '');
     lastAutoClassification = null;
@@ -217,11 +328,19 @@
     lastAutoClassification = null;
     $('classificationMessage').textContent = 'Clasificación ajustada manualmente.';
   });
-  $('subsubfamily').addEventListener('change', () => { lastAutoClassification = null; $('classificationMessage').textContent = 'Clasificación ajustada manualmente.'; });
+  $('subsubfamily').addEventListener('change', () => {
+    lastAutoClassification = null;
+    $('classificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  });
 
-  function escapeHtml(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-  function formatDate(v) { if (!v) return '—'; return new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v)); }
+  function escapeHtml(v='') {
+    return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+  function formatDate(v) {
+    if (!v) return '—';
+    return new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
+  }
 
   populateFamilies();
-  loadRecords();
+  initializeAuth();
 })();
