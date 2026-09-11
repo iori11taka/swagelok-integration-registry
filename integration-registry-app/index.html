@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Integraciones | Swagelok Perú</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">SW</div>
+      <div>
+        <strong>Swagelok Perú</strong>
+        <span>Integraciones</span>
+      </div>
+    </div>
+    <nav>
+      <button class="nav-item active" data-view="dashboard">Resumen</button>
+      <button class="nav-item" data-view="records">Integraciones</button>
+      <button class="nav-item" data-view="new">Nueva integración</button>
+    </nav>
+    <div class="sidebar-footer">Registro histórico de integraciones</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PORTAL INTERNO</p>
+        <h1 id="pageTitle">Registro de Integraciones</h1>
+      </div>
+      <button id="refreshButton" class="button ghost">Actualizar</button>
+    </header>
+
+    <section id="dashboardView" class="view active-view">
+      <div class="hero-card">
+        <div>
+          <p class="eyebrow">BASE HISTÓRICA</p>
+          <h2>Control central de códigos de integración</h2>
+          <p>Consulta, registra y clasifica integraciones con trazabilidad y respaldo automático.</p>
+        </div>
+        <button class="button primary" id="heroNewButton">+ Nueva integración</button>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card"><span>Total</span><strong id="kpiTotal">0</strong><small>integraciones registradas</small></article>
+        <article class="kpi-card"><span>Este año</span><strong id="kpiYear">0</strong><small>integraciones creadas</small></article>
+        <article class="kpi-card"><span>Clientes</span><strong id="kpiClients">0</strong><small>clientes únicos</small></article>
+        <article class="kpi-card"><span>Incompletos</span><strong id="kpiIncomplete">0</strong><small>requieren revisión</small></article>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">ÚLTIMOS REGISTROS</p>
+            <h3>Actividad reciente</h3>
+          </div>
+        </div>
+        <div id="recentList" class="recent-list"></div>
+      </div>
+    </section>
+
+    <section id="recordsView" class="view">
+      <div class="panel">
+        <div class="panel-head records-head">
+          <div>
+            <p class="eyebrow">HISTÓRICO</p>
+            <h3>Integraciones</h3>
+          </div>
+          <button class="button primary" id="newFromRecords">+ Nueva integración</button>
+        </div>
+
+        <div class="filters">
+          <input id="searchInput" type="search" placeholder="Buscar código, cliente, descripción..." />
+          <select id="yearFilter"><option value="">Todos los años</option></select>
+          <select id="familyFilter"><option value="">Todas las familias</option></select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Familia</th><th>Fecha</th></tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="newView" class="view">
+      <div class="panel form-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">NUEVO REGISTRO</p>
+            <h3>Crear integración</h3>
+          </div>
+          <span class="backup-badge">Backup Google Drive activado</span>
+        </div>
+
+        <form id="integrationForm" class="form-grid">
+          <label>Código de integración<input id="code" name="code" readonly placeholder="Se generará automáticamente" /></label>
+          <label>Cliente<input id="client" name="client" required /></label>
+          <label class="full">Descripción<textarea id="description" name="description" required rows="4"></textarea></label>
+          <label>Responsable<input id="responsible" name="responsible" required /></label>
+
+          <div class="classification-box full" id="classificationBox">
+            <div class="classification-copy">
+              <div class="classification-title-row">
+                <strong>Clasificación automática</strong>
+                <span id="classificationConfidence" class="confidence-badge neutral">Esperando descripción</span>
+              </div>
+              <p id="classificationMessage">Escribe la descripción y el sistema sugerirá Familia, Subfamilia y Sub-subfamilia usando el histórico.</p>
+            </div>
+            <button class="button mini ghost" type="button" id="classifyButton">Analizar descripción</button>
+          </div>
+
+          <label>Familia
+            <select id="family" name="family"><option value="">Seleccionar familia</option></select>
+          </label>
+          <label>Subfamilia
+            <select id="subfamily" name="subfamily"><option value="">Seleccionar subfamilia</option></select>
+          </label>
+          <label>Sub-subfamilia
+            <select id="subsubfamily" name="subsubfamily"><option value="">Seleccionar sub-subfamilia</option></select>
+          </label>
+          <div class="classification-help">Los campos se completan automáticamente, pero puedes corregirlos manualmente antes de guardar.</div>
+          <label class="full">Observaciones<textarea id="notes" name="notes" rows="3"></textarea></label>
+          <div class="form-actions full">
+            <span id="formStatus" class="status"></span>
+            <button class="button primary" type="submit">Guardar integración</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="classification-data.js"></script>
+  <script src="classification-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
