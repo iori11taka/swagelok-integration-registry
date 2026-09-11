@@ -634,7 +634,15 @@
       const { data, error } = await supabaseClient.functions.invoke('backup-integration', {
         body: { record }
       });
-      if (error) throw error;
+
+      if (error) {
+        console.error('backupIntegration invoke error:', {
+          code: record.code,
+          message: error.message,
+          context: error.context || null
+        });
+        throw error;
+      }
       if (data?.ok === false) throw new Error(data.error || 'Google backup rejected request.');
       console.info('Backup Google OK:', record.code, data);
       return { ok: true, data };
@@ -644,15 +652,25 @@
     }
   }
 
-  async function resolveCreatedRecord(created) {
-    if (created && typeof created === 'object' && !Array.isArray(created) && created.id && created.code) return created;
-    if (Array.isArray(created) && created[0]?.id && created[0]?.code) return created[0];
+  async function resolveCreatedRecord(created, expectedCode = '') {
+    if (created && typeof created === 'object' && !Array.isArray(created) && created.id && created.code) {
+      return created;
+    }
 
-    const createdCode = typeof created === 'string'
-      ? created
-      : (created?.code || created?.integration_code || '');
+    if (Array.isArray(created) && created[0]?.id && created[0]?.code) {
+      return created[0];
+    }
 
-    if (!createdCode) return null;
+    const createdCode =
+      expectedCode ||
+      (typeof created === 'string'
+        ? created
+        : (created?.code || created?.integration_code || created?.data?.code || ''));
+
+    if (!createdCode) {
+      console.warn('resolveCreatedRecord: no se pudo determinar el código creado.', created);
+      return null;
+    }
 
     const { data, error } = await supabaseClient
       .from('integrations')
@@ -665,7 +683,13 @@
       console.error('resolveCreatedRecord:', error);
       return null;
     }
-    return data || null;
+
+    if (!data) {
+      console.warn(`resolveCreatedRecord: no se encontró ${createdCode} después del RPC.`);
+      return null;
+    }
+
+    return data;
   }
 
   $('loginForm').addEventListener('submit', async e => {
@@ -844,12 +868,23 @@
     };
     try {
       const created = await createIntegration(payload);
-      const createdRecord = await resolveCreatedRecord(created);
-      const createdCode = createdRecord?.code || created?.code || created;
+
+      // El RPC puede devolver formatos distintos según la versión.
+      // Usamos también el código previsualizado del formulario para recuperar
+      // la fila recién creada antes de enviarla a Google.
+      const createdRecord = await resolveCreatedRecord(created, required.code);
+      const createdCode = createdRecord?.code || required.code || created?.code || created;
 
       const createBackup = createdRecord
         ? await backupIntegration(createdRecord)
         : { ok: false, skipped: true };
+
+      if (!createdRecord) {
+        console.error('CREATE_BACKUP: la INT se creó, pero no se pudo recuperar la fila completa para el backup.', {
+          created,
+          expectedCode: required.code
+        });
+      }
 
       $('formStatus').textContent = createBackup.ok
         ? `Guardado: ${createdCode} · Backup Google OK`
