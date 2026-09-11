@@ -11,17 +11,71 @@
       })
     : null;
 
-  const classifier = window.ClassificationEngine;
+  const classificationCatalog = window.INTEGRATION_CLASSIFICATION_CATALOG || [];
   let records = [];
-  let classificationTimer = null;
-  let lastAutoClassification = null;
-  let lastEditAutoClassification = null;
   let originalEditCode = '';
   let currentSession = null;
   let recordsPage = 1;
   const recordsPerPage = 12;
   const views = ['dashboard', 'records', 'new'];
   const $ = id => document.getElementById(id);
+
+  function getClassification(code) {
+    return classificationCatalog.find(item => item.code === code) || null;
+  }
+
+  function getSubclassification(classificationCode, subclassificationCode) {
+    return getClassification(classificationCode)?.items?.find(item => item.code === subclassificationCode) || null;
+  }
+
+  function classificationLabel(record, compact = false) {
+    if (!record?.classification_code) return 'Sin clasificar';
+    const classification = record.classification_name || record.classification_code;
+    if (!record.subclassification_code) return compact ? record.classification_code : `${record.classification_code} — ${classification}`;
+    const sub = record.subclassification_name || record.subclassification_code;
+    return compact
+      ? `${record.subclassification_code} · ${sub}`
+      : `${record.classification_code} — ${classification} / ${record.subclassification_code} — ${sub}`;
+  }
+
+  function isClassified(record) {
+    return !!(record?.classification_code && record?.subclassification_code);
+  }
+
+  function populateClassificationSelect(selectId, selected = '', allowBlank = true) {
+    const select = $(selectId);
+    if (!select) return;
+    const first = allowBlank
+      ? '<option value="">Sin clasificar</option>'
+      : '<option value="">Seleccionar clasificación</option>';
+    select.innerHTML = first + classificationCatalog.map(item =>
+      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
+    ).join('');
+  }
+
+  function populateSubclassificationSelect(selectId, classificationCode, selected = '', allowBlank = true) {
+    const select = $(selectId);
+    if (!select) return;
+    const classification = getClassification(classificationCode);
+    const first = allowBlank
+      ? '<option value="">Sin subclasificación</option>'
+      : '<option value="">Seleccionar subclasificación</option>';
+    select.innerHTML = first + (classification?.items || []).map(item =>
+      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
+    ).join('');
+    select.disabled = !classificationCode;
+  }
+
+  function selectedClassificationPayload(classificationCode, subclassificationCode) {
+    const classification = getClassification(classificationCode);
+    const subclassification = getSubclassification(classificationCode, subclassificationCode);
+    return {
+      classification_code: classification?.code || null,
+      classification_name: classification?.name || null,
+      subclassification_code: subclassification?.code || null,
+      subclassification_name: subclassification?.name || null
+    };
+  }
 
   function showView(name) {
     views.forEach(v => $(v + 'View').classList.toggle('active-view', v === name));
@@ -176,7 +230,7 @@
   }
 
   function isRecordComplete(r) {
-    return !!(r.code && r.description && r.client && r.responsible && r.family && r.subfamily && r.subsubfamily) &&
+    return !!(r.code && r.description && r.client && r.responsible) &&
       !/incompleta|revisi/i.test(r.review_status || '');
   }
 
@@ -210,15 +264,15 @@
   function dashboardFilteredRecords() {
     const q = ($('dashboardSearch')?.value || '').trim().toLowerCase();
     const year = $('dashboardYearFilter')?.value || '';
-    const family = $('dashboardFamilyFilter')?.value || '';
+    const classification = $('dashboardClassificationFilter')?.value || '';
     const status = $('dashboardStatusFilter')?.value || '';
 
     return records.filter(r => {
-      const bag = [r.code, r.description, r.client, r.responsible, r.family, r.subfamily, r.subsubfamily].join(' ').toLowerCase();
+      const bag = [r.code, r.description, r.client, r.responsible, r.classification_code, r.classification_name, r.subclassification_code, r.subclassification_name].join(' ').toLowerCase();
       const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
       return (!q || bag.includes(q)) &&
         (!year || String(r.integration_year) === year) &&
-        (!family || r.family === family) &&
+        (!classification || r.classification_code === classification) &&
         statusOk;
     });
   }
@@ -232,7 +286,7 @@
         <td><span class="industrial-code">${escapeHtml(r.code || '—')}</span></td>
         <td class="dash-desc">${escapeHtml(r.description || 'Sin descripción')}</td>
         <td>${escapeHtml(r.client || '—')}</td>
-        <td>${escapeHtml(r.family || '—')}</td>
+        <td>${escapeHtml(classificationLabel(r, true))}</td>
         <td><span class="status-pill ${isRecordComplete(r) ? 'complete' : 'incomplete'}">${isRecordComplete(r) ? 'Completo' : 'Incompleto'}</span></td>
         <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
         <td><button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button></td>
@@ -255,21 +309,21 @@
     const thisYearRecords = validCurrentYearRecords();
     const clients = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size;
     const incomplete = records.filter(r => !isRecordComplete(r)).length;
-    const familyCount = new Set(records.map(r => (r.family || '').trim()).filter(Boolean)).size;
+    const unclassifiedCount = records.filter(r => !isClassified(r)).length;
     const latest = latestIntegrationRecord();
 
     $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
     $('kpiYear').textContent = thisYearRecords.length.toLocaleString('es-PE');
     $('kpiClients').textContent = clients.toLocaleString('es-PE');
     $('kpiIncomplete').textContent = incomplete.toLocaleString('es-PE');
-    if ($('statFamilies')) $('statFamilies').textContent = familyCount.toLocaleString('es-PE');
+    if ($('statUnclassified')) $('statUnclassified').textContent = unclassifiedCount.toLocaleString('es-PE');
     if ($('currentYearLabel')) $('currentYearLabel').textContent = currentYear;
     if ($('latestCode')) $('latestCode').textContent = latest?.code || '—';
     if ($('latestCodeDate')) $('latestCodeDate').textContent = latest?.integration_year ? `Registro ${latest.integration_year}` : 'Registro histórico';
 
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))]
       .sort((a,b) => a-b);
-    const families = [...new Set(records.map(r => r.family).filter(Boolean))].sort();
+    const classifications = classificationCatalog;
 
     for (const id of ['dashboardYearFilter']) {
       if ($(id)) {
@@ -278,10 +332,12 @@
         $(id).value = old;
       }
     }
-    if ($('dashboardFamilyFilter')) {
-      const old = $('dashboardFamilyFilter').value;
-      $('dashboardFamilyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
-      $('dashboardFamilyFilter').value = old;
+    if ($('dashboardClassificationFilter')) {
+      const old = $('dashboardClassificationFilter').value;
+      $('dashboardClassificationFilter').innerHTML =
+        '<option value="">Todas las clasificaciones</option>' +
+        classifications.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.name)}</option>`).join('');
+      $('dashboardClassificationFilter').value = old;
     }
 
     const byYear = {};
@@ -324,27 +380,27 @@
   function fillFilters() {
     const currentYear = new Date().getFullYear();
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))].sort((a,b) => b-a);
-    const families = [...new Set(records.map(r => r.family).filter(Boolean))].sort();
-    const y = $('yearFilter').value, f = $('familyFilter').value;
+    const classifications = classificationCatalog;
+    const y = $('yearFilter').value, c = $('classificationFilter').value;
 
     $('yearFilter').innerHTML = '<option value="">Todos los años</option>' + years.map(v => `<option value="${v}">${v}</option>`).join('');
-    $('familyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    $('classificationFilter').innerHTML = '<option value="">Todas las clasificaciones</option>' + classifications.map(v => `<option value="${escapeHtml(v.code)}">${escapeHtml(v.code)} — ${escapeHtml(v.name)}</option>`).join('');
     $('yearFilter').value = y;
-    $('familyFilter').value = f;
+    $('classificationFilter').value = c;
   }
 
   function renderTable() {
     const q = $('searchInput').value.trim().toLowerCase();
     const year = $('yearFilter').value;
-    const family = $('familyFilter').value;
+    const classification = $('classificationFilter').value;
     const status = $('statusFilter')?.value || '';
 
     const filtered = records.filter(r => {
-      const bag = [r.code, r.description, r.client, r.responsible, r.family, r.subfamily, r.subsubfamily].join(' ').toLowerCase();
+      const bag = [r.code, r.description, r.client, r.responsible, r.classification_code, r.classification_name, r.subclassification_code, r.subclassification_name].join(' ').toLowerCase();
       const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
       return (!q || bag.includes(q)) &&
         (!year || String(r.integration_year) === year) &&
-        (!family || r.family === family) &&
+        (!classification || r.classification_code === classification) &&
         statusOk;
     });
 
@@ -358,7 +414,7 @@
       <td>${escapeHtml(r.description || '')}</td>
       <td>${escapeHtml(r.client || '—')}</td>
       <td>${escapeHtml(r.responsible || '—')}</td>
-      <td>${escapeHtml(r.family || '—')}</td>
+      <td>${escapeHtml(classificationLabel(r, true))}</td>
       <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
       <td class="row-actions">
         <button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button>
@@ -408,146 +464,25 @@
     $('code').value = error ? 'Se asignará al guardar' : data;
   }
 
-  function option(value, selected = false) {
-    return `<option value="${escapeHtml(value)}"${selected ? ' selected' : ''}>${escapeHtml(value)}</option>`;
-  }
-
-  function populateFamilies(selected = '') {
-    if (!classifier) return;
-    const families = Object.keys(classifier.taxonomy || {}).sort();
-    $('family').innerHTML = '<option value="">Seleccionar familia</option>' + families.map(v => option(v, v === selected)).join('');
-    populateSubfamilies(selected, '');
-  }
-
-  function populateSubfamilies(family, selected = '') {
-    const subs = classifier?.taxonomy?.[family] ? Object.keys(classifier.taxonomy[family]).sort() : [];
-    $('subfamily').innerHTML = '<option value="">Seleccionar subfamilia</option>' + subs.map(v => option(v, v === selected)).join('');
-    populateSubsubfamilies(family, selected, '');
-  }
-
-  function populateSubsubfamilies(family, subfamily, selected = '') {
-    const values = classifier?.taxonomy?.[family]?.[subfamily] || [];
-    $('subsubfamily').innerHTML = '<option value="">Seleccionar sub-subfamilia</option>' + values.map(v => option(v, v === selected)).join('');
-  }
-
-  function applyClassification(result) {
-    if (!result) {
-      lastAutoClassification = null;
-      updateClassificationUI(null);
-      return;
-    }
-    lastAutoClassification = result;
-    populateFamilies(result.family);
-    populateSubfamilies(result.family, result.subfamily);
-    populateSubsubfamilies(result.family, result.subfamily, result.subsubfamily);
-    updateClassificationUI(result);
-  }
-
-  function updateClassificationUI(result) {
-    const badge = $('classificationConfidence');
-    const message = $('classificationMessage');
-    if (!result) {
-      badge.textContent = 'Sin sugerencia';
-      badge.className = 'confidence-badge neutral';
-      message.textContent = 'No hay suficiente información todavía. Puedes seleccionar la clasificación manualmente.';
-      return;
-    }
-    const level = result.confidence >= 90 ? 'high' : result.confidence >= 75 ? 'medium' : 'low';
-    badge.textContent = `${result.confidence}% confianza`;
-    badge.className = `confidence-badge ${level}`;
-    message.innerHTML = `<strong>${escapeHtml(result.family)}</strong> → ${escapeHtml(result.subfamily)} → ${escapeHtml(result.subsubfamily)} <span class="classification-source">· ${escapeHtml(result.reason || result.source || '')}</span>`;
-  }
-
-  function runClassification() {
-    const description = $('description').value.trim();
-    if (!description) return updateClassificationUI(null);
-    applyClassification(classifier?.classify(description) || null);
-  }
-
-  function scheduleClassification() {
-    clearTimeout(classificationTimer);
-    classificationTimer = setTimeout(runClassification, 350);
-  }
-
-
-  function populateEditFamilies(selected = '') {
-    if (!classifier) return;
-    const families = Object.keys(classifier.taxonomy || {}).sort();
-    $('editFamily').innerHTML = '<option value="">Seleccionar familia</option>' + families.map(v => option(v, v === selected)).join('');
-    populateEditSubfamilies(selected, '');
-  }
-
-  function populateEditSubfamilies(family, selected = '') {
-    const subs = classifier?.taxonomy?.[family] ? Object.keys(classifier.taxonomy[family]).sort() : [];
-    $('editSubfamily').innerHTML = '<option value="">Seleccionar subfamilia</option>' + subs.map(v => option(v, v === selected)).join('');
-    populateEditSubsubfamilies(family, selected, '');
-  }
-
-  function populateEditSubsubfamilies(family, subfamily, selected = '') {
-    const values = classifier?.taxonomy?.[family]?.[subfamily] || [];
-    $('editSubsubfamily').innerHTML = '<option value="">Seleccionar sub-subfamilia</option>' + values.map(v => option(v, v === selected)).join('');
+  function initializeNewClassification() {
+    populateClassificationSelect('classificationCode', '', false);
+    populateSubclassificationSelect('subclassificationCode', '', '', false);
   }
 
   function setEditClassification(record) {
-    populateEditFamilies(record.family || '');
-    populateEditSubfamilies(record.family || '', record.subfamily || '');
-    populateEditSubsubfamilies(record.family || '', record.subfamily || '', record.subsubfamily || '');
-    lastEditAutoClassification = null;
-    $('editClassificationConfidence').textContent = record.classification_source === 'automatic' ? 'Automática' : 'Manual / histórica';
-    $('editClassificationConfidence').className = 'confidence-badge neutral';
-    $('editClassificationMessage').textContent = 'Clasificación actual cargada. Puedes modificarla manualmente o volver a analizar la descripción.';
-  }
-
-  function openEditModal(id) {
-    const record = records.find(r => String(r.id) === String(id));
-    if (!record) return;
-
-    $('editId').value = record.id;
-    originalEditCode = record.code || '';
-    $('editCode').value = originalEditCode;
-    $('editClient').value = record.client || '';
-    $('editDescription').value = record.description || '';
-    $('editResponsible').value = record.responsible || '';
-    $('editNotes').value = record.notes || '';
-    $('editFormStatus').textContent = '';
-    setEditClassification(record);
-
-    $('editModal').hidden = false;
-    document.body.classList.add('modal-open');
-    setTimeout(() => $('editDescription').focus(), 0);
-  }
-
-  function closeEditModal() {
-    $('editModal').hidden = true;
-    document.body.classList.remove('modal-open');
-    $('editIntegrationForm').reset();
-    lastEditAutoClassification = null;
-  }
-
-  function runEditClassification() {
-    const description = $('editDescription').value.trim();
-    const result = description ? classifier?.classify(description) : null;
-
-    if (!result) {
-      lastEditAutoClassification = null;
-      $('editClassificationConfidence').textContent = 'Sin sugerencia';
-      $('editClassificationConfidence').className = 'confidence-badge neutral';
-      $('editClassificationMessage').textContent = 'No hay suficiente información para sugerir una clasificación.';
-      return;
+    populateClassificationSelect('editClassificationCode', record.classification_code || '', true);
+    populateSubclassificationSelect(
+      'editSubclassificationCode',
+      record.classification_code || '',
+      record.subclassification_code || '',
+      true
+    );
+    const state = $('editClassificationState');
+    if (state) {
+      state.textContent = isClassified(record) ? `${record.subclassification_code} asignada` : 'Sin clasificar';
+      state.className = `manual-badge${isClassified(record) ? ' assigned' : ''}`;
     }
-
-    lastEditAutoClassification = result;
-    populateEditFamilies(result.family);
-    populateEditSubfamilies(result.family, result.subfamily);
-    populateEditSubsubfamilies(result.family, result.subfamily, result.subsubfamily);
-
-    const level = result.confidence >= 90 ? 'high' : result.confidence >= 75 ? 'medium' : 'low';
-    $('editClassificationConfidence').textContent = `${result.confidence}% confianza`;
-    $('editClassificationConfidence').className = `confidence-badge ${level}`;
-    $('editClassificationMessage').innerHTML =
-      `<strong>${escapeHtml(result.family)}</strong> → ${escapeHtml(result.subfamily)} → ${escapeHtml(result.subsubfamily)}`;
   }
-
 
   async function codeExistsInAnotherRecord(code, currentId) {
     const normalized = String(code || '').trim();
@@ -641,23 +576,27 @@
     if (e.key === 'Escape' && !$('editModal').hidden) closeEditModal();
   });
 
-  $('editClassifyButton').addEventListener('click', runEditClassification);
-
-  $('editFamily').addEventListener('change', () => {
-    populateEditSubfamilies($('editFamily').value, '');
-    lastEditAutoClassification = null;
-    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  $('editClassificationCode').addEventListener('change', () => {
+    populateSubclassificationSelect(
+      'editSubclassificationCode',
+      $('editClassificationCode').value,
+      '',
+      true
+    );
+    const state = $('editClassificationState');
+    if (state) {
+      state.textContent = $('editClassificationCode').value ? 'Selecciona subclasificación' : 'Sin clasificar';
+      state.className = 'manual-badge';
+    }
   });
 
-  $('editSubfamily').addEventListener('change', () => {
-    populateEditSubsubfamilies($('editFamily').value, $('editSubfamily').value, '');
-    lastEditAutoClassification = null;
-    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
-  });
-
-  $('editSubsubfamily').addEventListener('change', () => {
-    lastEditAutoClassification = null;
-    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  $('editSubclassificationCode').addEventListener('change', () => {
+    const state = $('editClassificationState');
+    if (!state) return;
+    state.textContent = $('editSubclassificationCode').value
+      ? `${$('editSubclassificationCode').value} asignada`
+      : ($('editClassificationCode').value ? 'Sin subclasificación' : 'Sin clasificar');
+    state.className = `manual-badge${$('editSubclassificationCode').value ? ' assigned' : ''}`;
   });
 
   $('editIntegrationForm').addEventListener('submit', async e => {
@@ -697,19 +636,16 @@
         description: $('editDescription').value.trim(),
         client: $('editClient').value.trim(),
         responsible: $('editResponsible').value.trim(),
-        family: $('editFamily').value || null,
-        subfamily: $('editSubfamily').value || null,
-        subsubfamily: $('editSubsubfamily').value || null,
+        ...selectedClassificationPayload(
+          $('editClassificationCode').value,
+          $('editSubclassificationCode').value
+        ),
         notes: $('editNotes').value.trim() || null,
-        classification_source: lastEditAutoClassification ? 'automatic' : 'manual',
-        classification_confidence: lastEditAutoClassification?.confidence || null,
         review_status: (
           newCode &&
+          $('editDescription').value.trim() &&
           $('editClient').value.trim() &&
-          $('editResponsible').value.trim() &&
-          $('editFamily').value &&
-          $('editSubfamily').value &&
-          $('editSubsubfamily').value
+          $('editResponsible').value.trim()
         ) ? 'OK' : 'REQUIERE REVISIÓN'
       };
 
@@ -746,25 +682,26 @@
   $('integrationForm').addEventListener('submit', async e => {
     e.preventDefault();
     $('formStatus').textContent = 'Guardando...';
-    const manualClassification = !lastAutoClassification;
+    const classificationCode = $('classificationCode').value;
+    const subclassificationCode = $('subclassificationCode').value;
+
+    if (!classificationCode || !subclassificationCode) {
+      $('formStatus').textContent = 'Selecciona la clasificación y subclasificación.';
+      return;
+    }
+
     const payload = {
       description: $('description').value.trim(),
       client: $('client').value.trim(),
       responsible: $('responsible').value.trim(),
-      family: $('family').value || null,
-      subfamily: $('subfamily').value || null,
-      subsubfamily: $('subsubfamily').value || null,
-      notes: $('notes').value.trim() || null,
-      classification_confidence: manualClassification ? null : (lastAutoClassification?.confidence || null),
-      classification_source: manualClassification ? 'manual' : 'automatic'
+      ...selectedClassificationPayload(classificationCode, subclassificationCode),
+      notes: $('notes').value.trim() || null
     };
     try {
       const created = await createIntegration(payload);
       $('formStatus').textContent = `Guardado: ${created.code || created}`;
       e.target.reset();
-      populateFamilies();
-      updateClassificationUI(null);
-      lastAutoClassification = null;
+      initializeNewClassification();
       await loadRecords();
       await prepareNextCode();
     } catch (err) {
@@ -794,10 +731,15 @@
 
   const clientsCard = $('clientsCard');
   if (clientsCard) clientsCard.addEventListener('click', () => showView('records'));
-  const familiesCard = $('familiesCard');
-  if (familiesCard) familiesCard.addEventListener('click', () => showView('records'));
+  const unclassifiedCard = $('unclassifiedCard');
+  if (unclassifiedCard) unclassifiedCard.addEventListener('click', () => {
+    showView('records');
+    if ($('classificationFilter')) $('classificationFilter').value = '';
+    recordsPage = 1;
+    renderTable();
+  });
 
-  ['dashboardSearch','dashboardYearFilter','dashboardFamilyFilter','dashboardStatusFilter'].forEach(id => {
+  ['dashboardSearch','dashboardYearFilter','dashboardClassificationFilter','dashboardStatusFilter'].forEach(id => {
     const el = $(id);
     if (el) el.addEventListener('input', renderDashboardTable);
     if (el) el.addEventListener('change', renderDashboardTable);
@@ -820,30 +762,20 @@
   });
   $('newFromRecords').addEventListener('click', () => showView('new'));
   $('refreshButton').addEventListener('click', loadRecords);
-  ['searchInput','yearFilter','familyFilter','statusFilter'].forEach(id => {
+  ['searchInput','yearFilter','classificationFilter','statusFilter'].forEach(id => {
     const el = $(id);
     if (!el) return;
     const handler = () => { recordsPage = 1; renderTable(); };
     el.addEventListener('input', handler);
     el.addEventListener('change', handler);
   });
-  $('description').addEventListener('input', scheduleClassification);
-  $('description').addEventListener('blur', runClassification);
-  $('classifyButton').addEventListener('click', runClassification);
-
-  $('family').addEventListener('change', () => {
-    populateSubfamilies($('family').value, '');
-    lastAutoClassification = null;
-    $('classificationMessage').textContent = 'Clasificación ajustada manualmente.';
-  });
-  $('subfamily').addEventListener('change', () => {
-    populateSubsubfamilies($('family').value, $('subfamily').value, '');
-    lastAutoClassification = null;
-    $('classificationMessage').textContent = 'Clasificación ajustada manualmente.';
-  });
-  $('subsubfamily').addEventListener('change', () => {
-    lastAutoClassification = null;
-    $('classificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  $('classificationCode').addEventListener('change', () => {
+    populateSubclassificationSelect(
+      'subclassificationCode',
+      $('classificationCode').value,
+      '',
+      false
+    );
   });
 
   function escapeHtml(v='') {
@@ -854,6 +786,6 @@
     return new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
   }
 
-  populateFamilies();
+  initializeNewClassification();
   initializeAuth();
 })();

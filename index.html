@@ -83,7 +83,7 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.5</span>
+        <span>v2.7</span>
       </div>
 
       <div class="sidebar-footer">
@@ -157,10 +157,10 @@
             <i>›</i>
           </button>
 
-          <button class="summary-card" id="familiesCard" type="button">
-            <span>Familias activas</span>
-            <strong id="statFamilies">0</strong>
-            <small>de clasificación</small>
+          <button class="summary-card" id="unclassifiedCard" type="button">
+            <span>Sin clasificar</span>
+            <strong id="statUnclassified">0</strong>
+            <small>registros históricos</small>
             <i>›</i>
           </button>
         </section>
@@ -185,8 +185,8 @@
                 <select id="dashboardYearFilter"><option value="">Todos los años</option></select>
               </div>
               <div class="filter-field">
-                <span>Familia</span>
-                <select id="dashboardFamilyFilter"><option value="">Todas las familias</option></select>
+                <span>Clasificación</span>
+                <select id="dashboardClassificationFilter"><option value="">Todas las clasificaciones</option></select>
               </div>
               <div class="filter-field">
                 <span>Estado</span>
@@ -205,7 +205,7 @@
                     <th>Código</th>
                     <th>Descripción</th>
                     <th>Cliente</th>
-                    <th>Familia</th>
+                    <th>Clasificación</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Acciones</th>
@@ -247,7 +247,7 @@
         <div>
           <span class="panel-kicker">BASE HISTÓRICA</span>
           <h2>Integraciones registradas</h2>
-          <p>Consulta el histórico completo, filtra por año o familia y localiza registros rápidamente.</p>
+          <p>Consulta el histórico completo, filtra por año o clasificación y actualiza registros antiguos cuando sea necesario.</p>
         </div>
         <button id="newFromRecords" class="button primary" type="button">+ Nueva integración</button>
       </div>
@@ -263,7 +263,7 @@
         <div class="filters">
           <input id="searchInput" type="search" placeholder="Buscar código, cliente, descripción..." />
           <select id="yearFilter"><option value="">Todos los años</option></select>
-          <select id="familyFilter"><option value="">Todas las familias</option></select>
+          <select id="classificationFilter"><option value="">Todas las clasificaciones</option></select>
           <select id="statusFilter">
             <option value="">Todos los estados</option>
             <option value="complete">Completo</option>
@@ -274,7 +274,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Familia</th><th>Fecha</th><th class="actions-col">Acciones</th></tr>
+              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Clasificación</th><th>Fecha</th><th class="actions-col">Acciones</th></tr>
             </thead>
             <tbody id="recordsBody"></tbody>
           </table>
@@ -291,7 +291,7 @@
         <div>
           <span class="panel-kicker">NUEVO REGISTRO</span>
           <h2>Crear integración</h2>
-          <p>Completa los datos principales y deja que el sistema sugiera la clasificación automáticamente.</p>
+          <p>Completa los datos principales y selecciona manualmente la clasificación corporativa.</p>
         </div>
       </div>
       <div class="panel form-panel">
@@ -309,27 +309,25 @@
           <label class="full">Descripción<textarea id="description" name="description" required rows="4"></textarea></label>
           <label>Responsable<input id="responsible" name="responsible" required /></label>
 
-          <div class="classification-box full" id="classificationBox">
-            <div class="classification-copy">
-              <div class="classification-title-row">
-                <strong>Clasificación automática</strong>
-                <span id="classificationConfidence" class="confidence-badge neutral">Esperando descripción</span>
-              </div>
-              <p id="classificationMessage">Escribe la descripción y el sistema sugerirá Familia, Subfamilia y Sub-subfamilia usando el histórico.</p>
+          <div class="manual-classification-intro full">
+            <div>
+              <strong>Clasificación corporativa</strong>
+              <p>Selecciona manualmente la clasificación y subclasificación definidas para los nuevos registros.</p>
             </div>
-            <button class="button mini ghost" type="button" id="classifyButton">Analizar descripción</button>
+            <span class="manual-badge">Selección manual</span>
           </div>
 
-          <label>Familia
-            <select id="family" name="family"><option value="">Seleccionar familia</option></select>
+          <label>Clasificación
+            <select id="classificationCode" name="classificationCode" required>
+              <option value="">Seleccionar clasificación</option>
+            </select>
           </label>
-          <label>Subfamilia
-            <select id="subfamily" name="subfamily"><option value="">Seleccionar subfamilia</option></select>
+          <label>Subclasificación
+            <select id="subclassificationCode" name="subclassificationCode" required disabled>
+              <option value="">Seleccionar subclasificación</option>
+            </select>
           </label>
-          <label>Sub-subfamilia
-            <select id="subsubfamily" name="subsubfamily"><option value="">Seleccionar sub-subfamilia</option></select>
-          </label>
-          <div class="classification-help">Los campos se completan automáticamente, pero puedes corregirlos manualmente antes de guardar.</div>
+          <div class="classification-help full">El catálogo reemplaza Familia / Subfamilia / Sub-subfamilia para todos los registros creados desde esta versión.</div>
           <label class="full">Observaciones<textarea id="notes" name="notes" rows="3"></textarea></label>
           <div class="form-actions full">
             <span id="formStatus" class="status"></span>
@@ -341,7 +339,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.5</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.7</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>
@@ -353,7 +351,7 @@
         <div>
           <span class="panel-kicker">ACTUALIZAR REGISTRO</span>
           <h2 id="editModalTitle">Editar integración</h2>
-          <p>Completa o corrige la información histórica. El código original se conserva.</p>
+          <p>Completa o corrige la información histórica y, si corresponde, asígnale la nueva clasificación corporativa.</p>
         </div>
         <button id="closeEditModal" class="modal-close" type="button" aria-label="Cerrar">×</button>
       </div>
@@ -378,27 +376,24 @@
           <input id="editResponsible" />
         </label>
 
-        <div class="classification-box full edit-classification-box">
-          <div class="classification-copy">
-            <div class="classification-title-row">
-              <strong>Clasificación</strong>
-              <span id="editClassificationConfidence" class="confidence-badge neutral">Manual</span>
-            </div>
-            <p id="editClassificationMessage">Puedes mantener la clasificación actual o volver a analizar la descripción.</p>
+        <div class="manual-classification-intro full historical-classification">
+          <div>
+            <strong>Clasificación corporativa</strong>
+            <p>Los registros históricos pueden permanecer sin clasificar o actualizarse manualmente con el nuevo catálogo.</p>
           </div>
-          <button id="editClassifyButton" class="button mini ghost" type="button">Analizar descripción</button>
+          <span id="editClassificationState" class="manual-badge">Sin clasificar</span>
         </div>
 
-        <label>Familia
-          <select id="editFamily"><option value="">Seleccionar familia</option></select>
+        <label>Clasificación
+          <select id="editClassificationCode">
+            <option value="">Sin clasificar</option>
+          </select>
         </label>
 
-        <label>Subfamilia
-          <select id="editSubfamily"><option value="">Seleccionar subfamilia</option></select>
-        </label>
-
-        <label>Sub-subfamilia
-          <select id="editSubsubfamily"><option value="">Seleccionar sub-subfamilia</option></select>
+        <label>Subclasificación
+          <select id="editSubclassificationCode" disabled>
+            <option value="">Sin subclasificación</option>
+          </select>
         </label>
 
         <label class="full">Observaciones
@@ -421,8 +416,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="classification-data.js"></script>
-  <script src="classification-engine.js"></script>
+  <script src="classification-catalog.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

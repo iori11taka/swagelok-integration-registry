@@ -1,0 +1,38 @@
+V2.7 - CLASIFICACIÓN CORPORATIVA MANUAL
+
+CAMBIO PRINCIPAL
+- Familia / Subfamilia / Sub-subfamilia dejan de utilizarse en la interfaz.
+- NO se eliminan de Supabase: permanecen como información histórica.
+- Todos los registros existentes comienzan sin la nueva clasificación salvo que se editen.
+- Los registros nuevos requieren selección manual de:
+  1) Clasificación
+  2) Subclasificación
+
+CATÁLOGO
+DA PRESS
+DB Gas Distribution
+DC Sampling
+DD Seal Support
+DE Thermal Loop
+EA Custom Solutions
+FA Kitted Items
+FB Product Reconfiguration
+FC Conversion (to a customer PN)
+FD Accessories
+FE Hose
+FF Tubing
+FG Other
+
+HISTÓRICO
+- Un registro histórico puede abrirse con Editar.
+- Se puede mantener "Sin clasificar".
+- En cualquier momento puede asignarse manualmente la nueva Clasificación/Subclasificación.
+- Los datos antiguos family/subfamily/subsubfamily no se muestran, pero siguen almacenados.
+
+ANTES DE USAR ESTA VERSIÓN
+1. Conserva tu config.js actual.
+2. En Supabase > SQL Editor ejecuta:
+   supabase/migrations/20260911_v27_manual_classification.sql
+3. Luego reemplaza los archivos del proyecto y recarga.
+
+Este ZIP NO incluye config.js.

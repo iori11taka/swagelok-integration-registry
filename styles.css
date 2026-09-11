@@ -2508,7 +2508,7 @@ body {
 
 .sidebar-valve {
   width: 300px;
-  margin-left: -45px;
+  margin-left: -78px;
   margin-bottom: -8px;
   opacity: .72;
   filter: saturate(.92) brightness(1.1);
@@ -2612,4 +2612,76 @@ body {
   .workspace-side {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* =========================================================
+   V2.7 — Manual corporate classification
+   ========================================================= */
+.manual-classification-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 17px;
+  border: 1px solid #cfe0eb;
+  border-left: 4px solid #0872bd;
+  border-radius: 7px;
+  background: #f7fbfe;
+}
+
+.manual-classification-intro strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #122d41;
+  font-size: 14px;
+}
+
+.manual-classification-intro p {
+  margin: 0;
+  color: #657b8b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.manual-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eaf1f6;
+  color: #536c7e;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.manual-badge.assigned {
+  background: #ddf4e7;
+  color: #217b50;
+}
+
+.historical-classification {
+  border-left-color: #6b879a;
+}
+
+.form-grid select:disabled,
+.edit-form select:disabled {
+  background: #f2f5f7;
+  color: #8a98a3;
+  cursor: not-allowed;
+}
+
+.classification-help.full {
+  grid-column: 1 / -1;
+}
+
+#classificationFilter,
+#dashboardClassificationFilter {
+  min-width: 0;
+}
+
+.status-pill.unclassified {
+  background: #edf1f4;
+  color: #627787;
 }
