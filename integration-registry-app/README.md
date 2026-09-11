@@ -123,3 +123,29 @@ La aplicación ahora exige sesión antes de consultar o registrar integraciones.
 6. Al cerrar sesión se vacían los datos visibles y vuelve la pantalla de acceso.
 
 El esquema SQL debe mantener las políticas RLS para el rol `authenticated`.
+
+
+## V1.3 - Recuperación de contraseña
+
+Configura en Supabase > Authentication > URL Configuration:
+
+- Site URL: `http://localhost:5500/integration-registry-app/`
+- Redirect URL permitida: `http://localhost:5500/integration-registry-app/`
+
+Luego usa **Send password recovery**. El frontend detecta el evento `PASSWORD_RECOVERY`,
+muestra un formulario para definir la nueva contraseña y usa `supabase.auth.updateUser()`.
+
+
+## V2 Visual
+
+Rediseño visual del portal manteniendo la lógica existente:
+- dashboard corporativo más compacto;
+- KPIs con jerarquía visual;
+- panorama histórico por año;
+- actividad reciente más legible;
+- barra de búsqueda global;
+- sidebar refinado;
+- favicon incluido;
+- diseño responsive.
+
+No cambia el esquema de Supabase ni la lógica de autenticación.

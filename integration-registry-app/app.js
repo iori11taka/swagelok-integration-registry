@@ -31,6 +31,24 @@
     document.body.classList.toggle('auth-locked', open);
   }
 
+  function showRecoveryMode() {
+    setAuthGate(true);
+    $('loginForm').hidden = true;
+    $('recoveryForm').hidden = false;
+    $('authTitle').textContent = 'Crear nueva contraseña';
+    const intro = document.querySelector('.auth-copy p:last-child');
+    if (intro) intro.textContent = 'Define una nueva contraseña para tu cuenta autorizada.';
+    $('recoveryStatus').textContent = '';
+  }
+
+  function showLoginMode() {
+    $('loginForm').hidden = false;
+    $('recoveryForm').hidden = true;
+    $('authTitle').textContent = 'Iniciar sesión';
+    const intro = document.querySelector('.auth-copy p:last-child');
+    if (intro) intro.textContent = 'Accede con el usuario autorizado de Supabase para consultar y registrar integraciones.';
+  }
+
   function setSessionUI(session) {
     currentSession = session || null;
     if (session?.user) {
@@ -57,12 +75,22 @@
     if (error) console.error('getSession:', error);
     setSessionUI(data?.session || null);
 
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        currentSession = session || null;
+        showRecoveryMode();
+        return;
+      }
       setSessionUI(session);
       if (session) await loadRecords();
     });
 
-    if (data?.session) await loadRecords();
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (hash.get('type') === 'recovery') {
+      showRecoveryMode();
+    } else if (data?.session) {
+      await loadRecords();
+    }
   }
 
   async function signIn(email, password) {
@@ -144,18 +172,51 @@
 
   function renderDashboard() {
     const currentYear = new Date().getFullYear();
-    $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
-    $('kpiYear').textContent = records.filter(r => Number(r.integration_year) === currentYear).length.toLocaleString('es-PE');
-    $('kpiClients').textContent = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size.toLocaleString('es-PE');
-    $('kpiIncomplete').textContent = records.filter(r =>
+    const thisYear = records.filter(r => Number(r.integration_year) === currentYear).length;
+    const clients = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size;
+    const incomplete = records.filter(r =>
       !r.client || !r.responsible || !r.family || !r.subfamily || !r.subsubfamily ||
       /incompleta|revisi/i.test(r.review_status || '')
-    ).length.toLocaleString('es-PE');
+    ).length;
 
-    $('recentList').innerHTML = records.slice(0, 8).map(r => `
+    $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
+    $('kpiYear').textContent = thisYear.toLocaleString('es-PE');
+    $('kpiClients').textContent = clients.toLocaleString('es-PE');
+    $('kpiIncomplete').textContent = incomplete.toLocaleString('es-PE');
+
+    const familyCount = new Set(records.map(r => (r.family || '').trim()).filter(Boolean)).size;
+    const years = [...new Set(records.map(r => Number(r.integration_year)).filter(Boolean))].sort((a,b)=>a-b);
+    const classified = records.filter(r => r.family && r.subfamily && r.subsubfamily).length;
+    if ($('statFamilies')) $('statFamilies').textContent = familyCount.toLocaleString('es-PE');
+    if ($('statYears')) $('statYears').textContent = years.length.toLocaleString('es-PE');
+    if ($('statClassified')) $('statClassified').textContent = records.length ? `${Math.round(classified / records.length * 100)}%` : '0%';
+    if ($('sidebarCount')) $('sidebarCount').textContent = `${records.length.toLocaleString('es-PE')} registros`;
+
+    const byYear = {};
+    records.forEach(r => {
+      const y = Number(r.integration_year);
+      if (y) byYear[y] = (byYear[y] || 0) + 1;
+    });
+    const topYears = Object.entries(byYear)
+      .sort((a,b)=>Number(b[0])-Number(a[0]))
+      .slice(0,6);
+    const maxYear = Math.max(1, ...topYears.map(([,v]) => v));
+    if ($('yearBars')) {
+      $('yearBars').innerHTML = topYears.map(([year,count]) => `
+        <div class="year-bar-row">
+          <strong>${year}</strong>
+          <div class="year-bar-track"><div class="year-bar-fill" style="width:${Math.max(6, Math.round(count/maxYear*100))}%"></div></div>
+          <span>${count}</span>
+        </div>`).join('') || '<div class="muted">Sin datos anuales.</div>';
+    }
+
+    $('recentList').innerHTML = records.slice(0, 7).map(r => `
       <div class="recent-item">
         <div class="code-pill">${escapeHtml(r.code)}</div>
-        <div><strong>${escapeHtml(r.description || 'Sin descripción')}</strong><div class="muted">${escapeHtml(r.client || 'Cliente no definido')}</div></div>
+        <div>
+          <strong>${escapeHtml(r.description || 'Sin descripción')}</strong>
+          <div class="muted">${escapeHtml(r.client || 'Cliente no definido')}</div>
+        </div>
         <div class="muted">${r.is_legacy ? `Histórico · ${escapeHtml(r.integration_year || '')}` : formatDate(r.created_at)}</div>
       </div>`).join('') || '<div class="muted">Aún no hay registros disponibles.</div>';
   }
@@ -274,6 +335,42 @@
     await signIn($('loginEmail').value.trim(), $('loginPassword').value);
   });
 
+
+  $('recoveryForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const p1 = $('newPassword').value;
+    const p2 = $('confirmPassword').value;
+    if (p1.length < 8) {
+      $('recoveryStatus').textContent = 'La contraseña debe tener al menos 8 caracteres.';
+      return;
+    }
+    if (p1 !== p2) {
+      $('recoveryStatus').textContent = 'Las contraseñas no coinciden.';
+      return;
+    }
+    $('recoveryButton').disabled = true;
+    $('recoveryStatus').textContent = 'Guardando contraseña...';
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: p1 });
+      if (error) throw error;
+      $('recoveryStatus').textContent = 'Contraseña actualizada correctamente.';
+      history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      await supabaseClient.auth.signOut();
+      showLoginMode();
+      setSessionUI(null);
+      $('loginStatus').textContent = 'Contraseña actualizada. Ya puedes iniciar sesión.';
+      $('recoveryForm').reset();
+    } catch (err) {
+      console.error('password recovery:', err);
+      const msg = String(err?.message || '');
+      $('recoveryStatus').textContent = /expired|invalid/i.test(msg)
+        ? 'El enlace de recuperación expiró o ya fue usado. Solicita uno nuevo.'
+        : 'No se pudo actualizar la contraseña.';
+    } finally {
+      $('recoveryButton').disabled = false;
+    }
+  });
+
   $('logoutButton').addEventListener('click', signOut);
 
   $('integrationForm').addEventListener('submit', async e => {
@@ -311,6 +408,19 @@
 
   document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
   $('heroNewButton').addEventListener('click', () => showView('new'));
+  const heroRecordsButton = $('heroRecordsButton');
+  if (heroRecordsButton) heroRecordsButton.addEventListener('click', () => showView('records'));
+  const recentViewAll = $('recentViewAll');
+  if (recentViewAll) recentViewAll.addEventListener('click', () => showView('records'));
+  const globalQuickSearch = $('globalQuickSearch');
+  if (globalQuickSearch) globalQuickSearch.addEventListener('input', () => {
+    const target = $('searchInput');
+    if (target) {
+      target.value = globalQuickSearch.value;
+      if (globalQuickSearch.value.trim()) showView('records');
+      renderTable();
+    }
+  });
   $('newFromRecords').addEventListener('click', () => showView('new'));
   $('refreshButton').addEventListener('click', loadRecords);
   ['searchInput','yearFilter','familyFilter'].forEach(id => $(id).addEventListener('input', renderTable));

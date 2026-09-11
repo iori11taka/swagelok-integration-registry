@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 </head>
 <body>
 
@@ -35,70 +36,182 @@
         <div id="loginStatus" class="auth-status"></div>
         <button id="loginButton" class="button primary auth-submit" type="submit">Ingresar</button>
       </form>
+      <form id="recoveryForm" class="auth-form" hidden>
+        <label>Nueva contraseña
+          <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo 8 caracteres" />
+        </label>
+        <label>Confirmar nueva contraseña
+          <input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Repite la contraseña" />
+        </label>
+        <div id="recoveryStatus" class="auth-status"></div>
+        <button id="recoveryButton" class="button primary auth-submit" type="submit">Guardar nueva contraseña</button>
+      </form>
       <p class="auth-note">Las cuentas son administradas por el responsable del portal. No hay registro público.</p>
     </section>
   </div>
 
   <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">SW</div>
-      <div>
-        <strong>Swagelok Perú</strong>
-        <span>Integraciones</span>
+      <div class="sidebar-brand">
+        <div class="sidebar-logo">SW</div>
+        <div class="sidebar-brand-copy">
+          <strong>Swagelok Perú</strong>
+          <span>Integraciones</span>
+        </div>
       </div>
-    </div>
-    <nav>
-      <button class="nav-item active" data-view="dashboard">Resumen</button>
-      <button class="nav-item" data-view="records">Integraciones</button>
-      <button class="nav-item" data-view="new">Nueva integración</button>
-    </nav>
-    <div class="sidebar-footer">Registro histórico de integraciones</div>
-  </aside>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="dashboard" type="button">
+          <span class="nav-icon">⌂</span><span>Resumen</span>
+        </button>
+        <button class="nav-item" data-view="records" type="button">
+          <span class="nav-icon">▤</span><span>Integraciones</span>
+        </button>
+        <button class="nav-item" data-view="new" type="button">
+          <span class="nav-icon">＋</span><span>Nueva integración</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-card">
+        <span class="sidebar-card-kicker">BASE HISTÓRICA</span>
+        <strong id="sidebarCount">0 registros</strong>
+        <small>Sincronizados con Supabase</small>
+      </div>
+
+      <div class="sidebar-footer">
+        <span class="status-dot"></span>
+        <span>Base conectada</span>
+      </div>
+    </aside>
 
   <main class="main">
     <header class="topbar">
-      <div>
+      <div class="topbar-heading">
         <p class="eyebrow">PORTAL INTERNO</p>
         <h1 id="pageTitle">Registro de Integraciones</h1>
+        <p class="topbar-subtitle">Gestión centralizada de códigos, clasificación y trazabilidad.</p>
       </div>
+
       <div class="topbar-actions">
-        <div id="sessionBox" class="session-box" hidden>
-          <span id="sessionEmail"></span>
-          <button id="logoutButton" class="button mini ghost" type="button">Cerrar sesión</button>
+        <div class="topbar-search-wrap">
+          <span class="search-icon">⌕</span>
+          <input id="globalQuickSearch" type="search" placeholder="Buscar código, cliente o descripción" aria-label="Búsqueda rápida" />
         </div>
-        <button id="refreshButton" class="button ghost">Actualizar</button>
+
+        <div id="sessionBox" class="session-box" hidden>
+          <span class="user-avatar">IT</span>
+          <div class="session-copy">
+            <strong id="sessionEmail"></strong>
+            <small>Usuario autorizado</small>
+          </div>
+          <button id="logoutButton" class="icon-button" type="button" title="Cerrar sesión">↗</button>
+        </div>
+
+        <button id="refreshButton" class="button secondary" type="button">Actualizar</button>
       </div>
     </header>
 
     <section id="dashboardView" class="view active-view">
-      <div class="hero-card">
-        <div>
-          <p class="eyebrow">BASE HISTÓRICA</p>
-          <h2>Control central de códigos de integración</h2>
-          <p>Consulta, registra y clasifica integraciones con trazabilidad y respaldo automático.</p>
-        </div>
-        <button class="button primary" id="heroNewButton">+ Nueva integración</button>
-      </div>
-
-      <div class="kpi-grid">
-        <article class="kpi-card"><span>Total</span><strong id="kpiTotal">0</strong><small>integraciones registradas</small></article>
-        <article class="kpi-card"><span>Este año</span><strong id="kpiYear">0</strong><small>integraciones creadas</small></article>
-        <article class="kpi-card"><span>Clientes</span><strong id="kpiClients">0</strong><small>clientes únicos</small></article>
-        <article class="kpi-card"><span>Incompletos</span><strong id="kpiIncomplete">0</strong><small>requieren revisión</small></article>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">ÚLTIMOS REGISTROS</p>
-            <h3>Actividad reciente</h3>
+      <div class="dashboard-grid">
+        <section class="hero-panel">
+          <div class="hero-content">
+            <span class="hero-badge">OPERACIÓN ACTIVA</span>
+            <h2>Control central de códigos de integración</h2>
+            <p>Consulta, registra y clasifica integraciones con trazabilidad, seguridad y respaldo centralizado.</p>
+            <div class="hero-meta">
+              <div><span>Base</span><strong>Histórica + actual</strong></div>
+              <div><span>Acceso</span><strong>Supabase Auth</strong></div>
+              <div><span>Estado</span><strong>Sincronizado</strong></div>
+            </div>
           </div>
-        </div>
-        <div id="recentList" class="recent-list"></div>
+          <div class="hero-actions">
+            <button id="heroNewButton" class="button primary large" type="button">+ Nueva integración</button>
+            <button class="button hero-secondary" data-view="records" id="heroRecordsButton" type="button">Ver histórico</button>
+          </div>
+        </section>
+
+        <section class="kpi-grid">
+          <article class="kpi-card kpi-primary">
+            <div class="kpi-icon">▦</div>
+            <div>
+              <span>Total</span>
+              <strong id="kpiTotal">0</strong>
+              <small>integraciones registradas</small>
+            </div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-icon">↗</div>
+            <div>
+              <span>Este año</span>
+              <strong id="kpiYear">0</strong>
+              <small>integraciones creadas</small>
+            </div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-icon">◉</div>
+            <div>
+              <span>Clientes</span>
+              <strong id="kpiClients">0</strong>
+              <small>clientes únicos</small>
+            </div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-icon">!</div>
+            <div>
+              <span>Incompletos</span>
+              <strong id="kpiIncomplete">0</strong>
+              <small>requieren revisión</small>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-lower">
+          <article class="panel analytics-panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-kicker">PANORAMA</span>
+                <h3>Distribución del histórico</h3>
+              </div>
+            </div>
+            <div class="mini-stats">
+              <div>
+                <span>Familias activas</span>
+                <strong id="statFamilies">0</strong>
+              </div>
+              <div>
+                <span>Años registrados</span>
+                <strong id="statYears">0</strong>
+              </div>
+              <div>
+                <span>Con clasificación</span>
+                <strong id="statClassified">0%</strong>
+              </div>
+            </div>
+            <div class="year-bars" id="yearBars"></div>
+          </article>
+
+          <article class="panel recent-panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-kicker">ÚLTIMOS REGISTROS</span>
+                <h3>Actividad reciente</h3>
+              </div>
+              <button class="text-button" id="recentViewAll" type="button">Ver todos</button>
+            </div>
+            <div id="recentList" class="recent-list"></div>
+          </article>
+        </section>
       </div>
     </section>
 
     <section id="recordsView" class="view">
+      <div class="section-heading-row">
+        <div>
+          <span class="panel-kicker">BASE HISTÓRICA</span>
+          <h2>Integraciones registradas</h2>
+          <p>Consulta el histórico completo, filtra por año o familia y localiza registros rápidamente.</p>
+        </div>
+        <button id="newFromRecords" class="button primary" type="button">+ Nueva integración</button>
+      </div>
       <div class="panel">
         <div class="panel-head records-head">
           <div>
@@ -126,6 +239,13 @@
     </section>
 
     <section id="newView" class="view">
+      <div class="section-heading-row">
+        <div>
+          <span class="panel-kicker">NUEVO REGISTRO</span>
+          <h2>Crear integración</h2>
+          <p>Completa los datos principales y deja que el sistema sugiera la clasificación automáticamente.</p>
+        </div>
+      </div>
       <div class="panel form-panel">
         <div class="panel-head">
           <div>
