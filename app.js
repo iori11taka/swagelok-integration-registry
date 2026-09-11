@@ -20,6 +20,32 @@
   const views = ['dashboard', 'records', 'new'];
   const $ = id => document.getElementById(id);
 
+
+  function ensureDeleteButtonStyles() {
+    if (document.getElementById('integrationDeleteStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'integrationDeleteStyles';
+    style.textContent = `
+      .row-actions { display:flex; gap:8px; align-items:center; white-space:nowrap; }
+      .table-delete {
+        appearance:none;
+        border:1px solid #efb3b3;
+        background:#fff6f6;
+        color:#b42318;
+        border-radius:8px;
+        padding:8px 12px;
+        font:inherit;
+        font-weight:700;
+        cursor:pointer;
+        transition:background .15s ease,border-color .15s ease,transform .15s ease;
+      }
+      .table-delete:hover { background:#feecec; border-color:#e58b8b; }
+      .table-delete:active { transform:translateY(1px); }
+      .table-delete:disabled { opacity:.55; cursor:not-allowed; }
+    `;
+    document.head.appendChild(style);
+  }
+
   function getCategory(code) { return itemMasterHierarchy.find(x => x.code === code) || null; }
   function getGroup(categoryCode, groupCode) { return getCategory(categoryCode)?.groups?.find(x => x.code === groupCode) || null; }
   function getSeries(categoryCode, groupCode, seriesCode) { return getGroup(categoryCode, groupCode)?.series?.find(x => x.code === seriesCode) || null; }
@@ -261,7 +287,10 @@
         <td>${escapeHtml(hierarchyLabel(r, true))}</td>
         <td><span class="status-pill ${isRecordComplete(r) ? 'complete' : 'incomplete'}">${isRecordComplete(r) ? 'Completo' : 'Incompleto'}</span></td>
         <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
-        <td><button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button></td>
+        <td class="row-actions">
+          <button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button>
+          <button class="table-delete" type="button" data-delete-id="${escapeHtml(r.id)}" data-delete-code="${escapeHtml(r.code || '')}">Eliminar</button>
+        </td>
       </tr>`).join('') || '<tr><td colspan="7" class="empty-cell">No hay registros para los filtros aplicados.</td></tr>';
     }
 
@@ -273,6 +302,9 @@
 
     document.querySelectorAll('#dashboardRecordsBody [data-edit-id]').forEach(button => {
       button.addEventListener('click', () => openEditModal(button.dataset.editId));
+    });
+    document.querySelectorAll('#dashboardRecordsBody [data-delete-id]').forEach(button => {
+      button.addEventListener('click', () => confirmAndDeleteIntegration(button.dataset.deleteId, button.dataset.deleteCode));
     });
   }
 
@@ -388,6 +420,7 @@
       <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
       <td class="row-actions">
         <button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button>
+        <button class="table-delete" type="button" data-delete-id="${escapeHtml(r.id)}" data-delete-code="${escapeHtml(r.code || '')}">Eliminar</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="7" class="empty-cell">No se encontraron registros.</td></tr>';
 
@@ -422,6 +455,9 @@
 
     document.querySelectorAll('#recordsBody [data-edit-id]').forEach(button => {
       button.addEventListener('click', () => openEditModal(button.dataset.editId));
+    });
+    document.querySelectorAll('#recordsBody [data-delete-id]').forEach(button => {
+      button.addEventListener('click', () => confirmAndDeleteIntegration(button.dataset.deleteId, button.dataset.deleteCode));
     });
   }
 
@@ -527,6 +563,45 @@
 
     if (error) throw error;
     return (data || []).some(row => String(row.id) !== String(currentId));
+  }
+
+  async function deleteIntegration(id) {
+    if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
+
+    const { data, error } = await supabaseClient
+      .from('integrations')
+      .delete()
+      .eq('id', id)
+      .select('id, code')
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async function confirmAndDeleteIntegration(id, code) {
+    if (!id) return;
+    const label = code || 'este registro';
+    const confirmed = window.confirm(
+      `¿Eliminar ${label} de la plataforma?\n\n` +
+      'Esta acción eliminará el registro de Supabase y de la web.\n' +
+      'El registro NO se eliminará del Excel de respaldo.'
+    );
+    if (!confirmed) return;
+
+    try {
+      const deleted = await deleteIntegration(id);
+      console.info('Integración eliminada de Supabase. El backup en Google se conserva:', deleted);
+      await loadRecords();
+    } catch (err) {
+      console.error('deleteIntegration:', err);
+      const message = String(err?.message || '');
+      if (/permission|403|rls|row-level/i.test(message)) {
+        alert('Tu usuario no tiene permiso para eliminar integraciones. Revisa la política DELETE de Supabase.');
+      } else {
+        alert('No se pudo eliminar la integración. Revisa la consola.');
+      }
+    }
   }
 
   async function updateIntegration(id, payload) {
@@ -879,6 +954,7 @@
     return new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
   }
 
+  ensureDeleteButtonStyles();
   initializeNewHierarchy();
   updateCreateButtonState();
   initializeAuth();
