@@ -1,0 +1,15 @@
+V2.3 - EDICIÓN DEL CÓDIGO DE INTEGRACIÓN
+
+Este paquete NO incluye config.js para no sobrescribir tu conexión de Supabase.
+
+Cambios:
+- El campo "Código de integración" ahora es editable.
+- Antes de guardar, la web consulta Supabase y comprueba que el código no exista en otro registro.
+- Si existe, no permite guardar y muestra un mensaje.
+- Si el código cambia correctamente, se actualiza junto con el resto del registro.
+- El trigger integration_audit que ya configuramos registra automáticamente el BEFORE/AFTER de la actualización, incluyendo el código anterior y el nuevo.
+- Se limpia el mensaje antiguo de permisos del login cuando una consulta posterior carga correctamente.
+
+No es necesario ejecutar SQL nuevo si tu usuario authenticated ya tiene:
+SELECT, UPDATE sobre public.integrations
+y la policy RLS UPDATE activa.

@@ -1,0 +1,17 @@
+V2.2 - EDICIÓN DE REGISTROS EXISTENTES
+
+Este paquete NO incluye config.js para no sobrescribir tu conexión funcional.
+
+Novedades:
+- Botón Editar por cada integración.
+- Modal para completar/corregir datos históricos.
+- Código de integración bloqueado (no se modifica).
+- Cliente, descripción, responsable, familia, subfamilia, sub-subfamilia y observaciones editables.
+- Reanálisis automático de clasificación desde la descripción.
+- Actualización directa en Supabase.
+- Los cambios quedan cubiertos por el trigger de auditoría ya creado en integration_audit.
+- review_status cambia a OK cuando los campos principales están completos.
+
+Requisito Supabase:
+El rol authenticated debe conservar permiso UPDATE sobre public.integrations
+y la policy RLS de UPDATE creada anteriormente.

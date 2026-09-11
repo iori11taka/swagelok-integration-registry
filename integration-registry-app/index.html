@@ -8,17 +8,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="icon" type="image/png" href="./assets/swagelok-mark.png" />
 </head>
 <body>
 
   <div id="authGate" class="auth-gate">
     <section class="auth-card" aria-labelledby="authTitle">
       <div class="auth-brand">
-        <div class="brand-mark">SW</div>
-        <div>
-          <strong>Swagelok Perú</strong>
-          <span>Registro de Integraciones</span>
+        <div class="auth-logo-shell">
+          <img src="./assets/swagelok-mark.png" alt="Swagelok" class="auth-logo-mark" />
+        </div>
+        <div class="auth-brand-copy">
+          <img src="./assets/swagelok-wordmark.png" alt="Swagelok" class="auth-wordmark" />
+          <span>Perú · Registro de Integraciones</span>
         </div>
       </div>
       <div class="auth-copy">
@@ -52,10 +54,12 @@
 
   <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="sidebar-logo">SW</div>
+        <div class="sidebar-logo-shell">
+          <img src="./assets/swagelok-mark.png" alt="Swagelok" class="sidebar-logo-image" />
+        </div>
         <div class="sidebar-brand-copy">
-          <strong>Swagelok Perú</strong>
-          <span>Integraciones</span>
+          <img src="./assets/swagelok-wordmark.png" alt="Swagelok" class="sidebar-wordmark" />
+          <span>Perú · Integraciones</span>
         </div>
       </div>
 
@@ -71,10 +75,15 @@
         </button>
       </nav>
 
-      <div class="sidebar-card">
-        <span class="sidebar-card-kicker">BASE HISTÓRICA</span>
-        <strong id="sidebarCount">0 registros</strong>
-        <small>Sincronizados con Supabase</small>
+      <div class="sidebar-technical">
+        <img src="./assets/valve-lineart-user.png" alt="" class="sidebar-valve" aria-hidden="true" />
+        <p>Soluciones confiables para un mundo en movimiento.</p>
+      </div>
+
+      <div class="sidebar-product">
+        <strong>Swagelok Perú</strong>
+        <span>Registro de Integraciones</span>
+        <span>v2.5</span>
       </div>
 
       <div class="sidebar-footer">
@@ -84,121 +93,151 @@
     </aside>
 
   <main class="main">
-    <header class="topbar">
-      <div class="topbar-heading">
-        <p class="eyebrow">PORTAL INTERNO</p>
-        <h1 id="pageTitle">Registro de Integraciones</h1>
-        <p class="topbar-subtitle">Gestión centralizada de códigos, clasificación y trazabilidad.</p>
+    <header class="topbar industrial-topbar">
+      <div class="topbar-product">
+        <span class="topbar-product-mark">≡</span>
+        <strong>Swagelok Perú</strong>
       </div>
 
       <div class="topbar-actions">
-        <div class="topbar-search-wrap">
-          <span class="search-icon">⌕</span>
-          <input id="globalQuickSearch" type="search" placeholder="Buscar código, cliente o descripción" aria-label="Búsqueda rápida" />
-        </div>
-
         <div id="sessionBox" class="session-box" hidden>
           <span class="user-avatar">IT</span>
           <div class="session-copy">
             <strong id="sessionEmail"></strong>
             <small>Usuario autorizado</small>
           </div>
-          <button id="logoutButton" class="icon-button" type="button" title="Cerrar sesión">↗</button>
         </div>
-
-        <button id="refreshButton" class="button secondary" type="button">Actualizar</button>
+        <button id="logoutButton" class="button secondary" type="button">Cerrar sesión</button>
+        <div class="engineered-mark">ENGINEERED<br>FOR WHAT'S NEXT™</div>
+        <button id="refreshButton" class="sr-refresh" type="button" aria-label="Actualizar datos">Actualizar</button>
       </div>
     </header>
 
     <section id="dashboardView" class="view active-view">
-      <div class="dashboard-grid">
-        <section class="hero-panel">
-          <div class="hero-content">
-            <span class="hero-badge">OPERACIÓN ACTIVA</span>
-            <h2>Control central de códigos de integración</h2>
-            <p>Consulta, registra y clasifica integraciones con trazabilidad, seguridad y respaldo centralizado.</p>
-            <div class="hero-meta">
-              <div><span>Base</span><strong>Histórica + actual</strong></div>
-              <div><span>Acceso</span><strong>Supabase Auth</strong></div>
-              <div><span>Estado</span><strong>Sincronizado</strong></div>
-            </div>
+      <div class="industrial-dashboard">
+
+        <section class="registry-head">
+          <div class="registry-title">
+            <span class="registry-kicker">INTEGRACIONES</span>
+            <h1 id="pageTitle">Registro de Integraciones</h1>
+            <p>Base histórica y correlativo de códigos de integración</p>
           </div>
-          <div class="hero-actions">
-            <button id="heroNewButton" class="button primary large" type="button">+ Nueva integración</button>
-            <button class="button hero-secondary" data-view="records" id="heroRecordsButton" type="button">Ver histórico</button>
+
+          <div class="registry-stat registry-latest">
+            <span>Último código registrado</span>
+            <strong id="latestCode">—</strong>
+            <small id="latestCodeDate">Registro histórico</small>
           </div>
+
+          <div class="registry-stat">
+            <strong id="kpiTotal">0</strong>
+            <span>registros totales</span>
+          </div>
+
+          <div class="registry-stat">
+            <strong id="kpiYear">0</strong>
+            <span>registros en <b id="currentYearLabel"></b></span>
+          </div>
+
+          <button id="heroNewButton" class="button primary registry-new" type="button">＋ Nueva integración</button>
         </section>
 
-        <section class="kpi-grid">
-          <article class="kpi-card kpi-primary">
-            <div class="kpi-icon">▦</div>
-            <div>
-              <span>Total</span>
-              <strong id="kpiTotal">0</strong>
-              <small>integraciones registradas</small>
-            </div>
-          </article>
-          <article class="kpi-card">
-            <div class="kpi-icon">↗</div>
-            <div>
-              <span>Este año</span>
-              <strong id="kpiYear">0</strong>
-              <small>integraciones creadas</small>
-            </div>
-          </article>
-          <article class="kpi-card">
-            <div class="kpi-icon">◉</div>
-            <div>
-              <span>Clientes</span>
-              <strong id="kpiClients">0</strong>
-              <small>clientes únicos</small>
-            </div>
-          </article>
-          <article class="kpi-card">
-            <div class="kpi-icon">!</div>
-            <div>
-              <span>Incompletos</span>
-              <strong id="kpiIncomplete">0</strong>
-              <small>requieren revisión</small>
-            </div>
-          </article>
+        <section class="summary-strip">
+          <button class="summary-card summary-alert" id="incompleteCard" type="button">
+            <span>Registros incompletos</span>
+            <strong id="kpiIncomplete">0</strong>
+            <small>requieren revisión</small>
+            <i>›</i>
+          </button>
+
+          <button class="summary-card" id="clientsCard" type="button">
+            <span>Clientes únicos</span>
+            <strong id="kpiClients">0</strong>
+            <small>clientes registrados</small>
+            <i>›</i>
+          </button>
+
+          <button class="summary-card" id="familiesCard" type="button">
+            <span>Familias activas</span>
+            <strong id="statFamilies">0</strong>
+            <small>de clasificación</small>
+            <i>›</i>
+          </button>
         </section>
 
-        <section class="dashboard-lower">
-          <article class="panel analytics-panel">
-            <div class="panel-header">
+        <section class="dashboard-workspace">
+          <article class="workspace-main">
+            <div class="workspace-title-row">
               <div>
-                <span class="panel-kicker">PANORAMA</span>
-                <h3>Distribución del histórico</h3>
+                <h2>Histórico de Integraciones</h2>
+                <p>Consulta, filtra y actualiza la base histórica desde un solo lugar.</p>
+              </div>
+              <button id="dashboardViewAll" class="text-button" type="button">Abrir histórico completo</button>
+            </div>
+
+            <div class="dashboard-filters">
+              <label class="dashboard-search" for="dashboardSearch">
+                <span class="dashboard-search-icon" aria-hidden="true">⌕</span>
+                <input id="dashboardSearch" type="search" placeholder="Buscar por código, cliente o descripción" />
+              </label>
+              <div class="filter-field">
+                <span>Año</span>
+                <select id="dashboardYearFilter"><option value="">Todos los años</option></select>
+              </div>
+              <div class="filter-field">
+                <span>Familia</span>
+                <select id="dashboardFamilyFilter"><option value="">Todas las familias</option></select>
+              </div>
+              <div class="filter-field">
+                <span>Estado</span>
+                <select id="dashboardStatusFilter">
+                <option value="">Todos los estados</option>
+                <option value="complete">Completo</option>
+                <option value="incomplete">Incompleto</option>
+                </select>
               </div>
             </div>
-            <div class="mini-stats">
-              <div>
-                <span>Familias activas</span>
-                <strong id="statFamilies">0</strong>
-              </div>
-              <div>
-                <span>Años registrados</span>
-                <strong id="statYears">0</strong>
-              </div>
-              <div>
-                <span>Con clasificación</span>
-                <strong id="statClassified">0%</strong>
-              </div>
+
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Cliente</th>
+                    <th>Familia</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardRecordsBody"></tbody>
+              </table>
             </div>
-            <div class="year-bars" id="yearBars"></div>
+
+            <div class="dashboard-table-footer">
+              <span id="dashboardRecordCount">Mostrando registros</span>
+              <button id="dashboardNextPage" class="pager-button" type="button">Ver más ›</button>
+            </div>
           </article>
 
-          <article class="panel recent-panel">
-            <div class="panel-header">
-              <div>
-                <span class="panel-kicker">ÚLTIMOS REGISTROS</span>
+          <aside class="workspace-side">
+            <article class="side-card">
+              <div class="side-card-title">
                 <h3>Actividad reciente</h3>
+                <button class="text-button" id="recentViewAll" type="button">Ver todas</button>
               </div>
-              <button class="text-button" id="recentViewAll" type="button">Ver todos</button>
-            </div>
-            <div id="recentList" class="recent-list"></div>
-          </article>
+              <div id="recentList" class="recent-list industrial-recent"></div>
+            </article>
+
+            <article class="side-card years-card">
+              <div class="side-card-title">
+                <h3>Registros por año</h3>
+                <button class="text-button" id="yearsViewDetail" type="button">Ver detalle</button>
+              </div>
+              <div id="yearBars" class="year-columns"></div>
+            </article>
+          </aside>
         </section>
       </div>
     </section>
@@ -218,22 +257,31 @@
             <p class="eyebrow">HISTÓRICO</p>
             <h3>Integraciones</h3>
           </div>
-          <button class="button primary" id="newFromRecords">+ Nueva integración</button>
+          
         </div>
 
         <div class="filters">
           <input id="searchInput" type="search" placeholder="Buscar código, cliente, descripción..." />
           <select id="yearFilter"><option value="">Todos los años</option></select>
           <select id="familyFilter"><option value="">Todas las familias</option></select>
+          <select id="statusFilter">
+            <option value="">Todos los estados</option>
+            <option value="complete">Completo</option>
+            <option value="incomplete">Incompleto</option>
+          </select>
         </div>
 
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Familia</th><th>Fecha</th></tr>
+              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Familia</th><th>Fecha</th><th class="actions-col">Acciones</th></tr>
             </thead>
             <tbody id="recordsBody"></tbody>
           </table>
+        </div>
+        <div class="records-footer">
+          <span id="recordsCount">0 registros</span>
+          <div id="recordsPagination" class="records-pagination"></div>
         </div>
       </div>
     </section>
@@ -290,7 +338,86 @@
         </form>
       </div>
     </section>
+
+    <footer class="app-footer">
+      <span>© 2026 Swagelok Perú. Uso interno.</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.5</span>
+      <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
+    </footer>
   </main>
+
+
+  <div id="editModal" class="modal-backdrop" hidden>
+    <section class="edit-modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="edit-modal-header">
+        <div>
+          <span class="panel-kicker">ACTUALIZAR REGISTRO</span>
+          <h2 id="editModalTitle">Editar integración</h2>
+          <p>Completa o corrige la información histórica. El código original se conserva.</p>
+        </div>
+        <button id="closeEditModal" class="modal-close" type="button" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="editIntegrationForm" class="edit-form">
+        <input id="editId" type="hidden" />
+
+        <label>Código de integración
+          <input id="editCode" autocomplete="off" />
+          <small class="field-help">Puede corregirse. El sistema impedirá guardar un código que ya pertenezca a otro registro.</small>
+        </label>
+
+        <label>Cliente
+          <input id="editClient" />
+        </label>
+
+        <label class="full">Descripción
+          <textarea id="editDescription" rows="4"></textarea>
+        </label>
+
+        <label>Responsable
+          <input id="editResponsible" />
+        </label>
+
+        <div class="classification-box full edit-classification-box">
+          <div class="classification-copy">
+            <div class="classification-title-row">
+              <strong>Clasificación</strong>
+              <span id="editClassificationConfidence" class="confidence-badge neutral">Manual</span>
+            </div>
+            <p id="editClassificationMessage">Puedes mantener la clasificación actual o volver a analizar la descripción.</p>
+          </div>
+          <button id="editClassifyButton" class="button mini ghost" type="button">Analizar descripción</button>
+        </div>
+
+        <label>Familia
+          <select id="editFamily"><option value="">Seleccionar familia</option></select>
+        </label>
+
+        <label>Subfamilia
+          <select id="editSubfamily"><option value="">Seleccionar subfamilia</option></select>
+        </label>
+
+        <label>Sub-subfamilia
+          <select id="editSubsubfamily"><option value="">Seleccionar sub-subfamilia</option></select>
+        </label>
+
+        <label class="full">Observaciones
+          <textarea id="editNotes" rows="3"></textarea>
+        </label>
+
+        <div class="edit-audit-note full">
+          <strong>Trazabilidad activa</strong>
+          <span>Los cambios quedarán registrados en la auditoría de Supabase.</span>
+        </div>
+
+        <div class="form-actions full">
+          <span id="editFormStatus" class="status"></span>
+          <button id="cancelEditButton" class="button secondary" type="button">Cancelar</button>
+          <button id="saveEditButton" class="button primary" type="submit">Guardar cambios</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>

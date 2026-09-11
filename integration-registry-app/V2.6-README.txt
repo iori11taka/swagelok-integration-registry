@@ -1,0 +1,15 @@
+V2.6 - AJUSTE VISUAL Y ALINEACIÓN
+
+Este paquete NO incluye config.js.
+
+Correcciones:
+- Barra de búsqueda reconstruida para evitar cortes y desalineación.
+- Filtros Año / Familia / Estado alineados a una misma altura.
+- Mejor distribución del encabezado y métricas.
+- Tabla con proporciones de columnas más consistentes.
+- Mejor adaptación a 100% de zoom y pantallas entre 1280 y 1600 px.
+- Panel lateral de actividad ajustado.
+- Se usa la ilustración de válvula enviada por el usuario.
+- Corrección de "Último código registrado" para priorizar códigos INT válidos.
+- Histórico completo con mejor alineación.
+- No modifica Supabase, Auth, clasificación, edición ni auditoría.

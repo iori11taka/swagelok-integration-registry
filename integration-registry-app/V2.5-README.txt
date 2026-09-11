@@ -1,0 +1,19 @@
+V2.5 INDUSTRIAL IDENTITY
+
+Diseño implementado siguiendo el mockup aprobado:
+- Barra lateral Swagelok oscura con ilustración técnica de válvula.
+- Cabecera sobria con usuario y cierre de sesión.
+- Encabezado principal con último código, total y registros del año.
+- Tarjetas simples para incompletos, clientes y familias.
+- Tabla de histórico dentro del Resumen.
+- Filtros de código, año, familia y estado.
+- Actividad reciente en panel lateral.
+- Gráfico vertical de registros por año.
+- Paginación real en Histórico.
+- Botones Editar en Resumen e Histórico.
+- Footer interno.
+- Se mantiene Auth, Supabase, clasificación automática, edición, auditoría y cambio de código.
+- NO incluye config.js.
+
+IMPORTANTE:
+Conserva el config.js funcional de tu proyecto actual.

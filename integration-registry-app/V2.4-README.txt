@@ -1,0 +1,16 @@
+V2.4 PROFESSIONAL UI
+
+Este ZIP NO incluye config.js.
+Conserva el config.js funcional de tu proyecto actual.
+
+Cambios visuales:
+- Logo circular Swagelok real en sidebar y login.
+- Logotipo Swagelok real en sidebar/login.
+- Sidebar corporativo más refinado.
+- Dashboard con jerarquía y espaciado más profesional.
+- Hero corporativo con marca de agua Swagelok.
+- KPIs, paneles y tabla refinados.
+- Login rediseñado.
+- Modal de edición refinado.
+- Responsive mejorado.
+- No cambia Supabase, Auth, RLS, clasificación ni lógica de edición.

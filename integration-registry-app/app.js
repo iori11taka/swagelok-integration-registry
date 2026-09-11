@@ -15,14 +15,18 @@
   let records = [];
   let classificationTimer = null;
   let lastAutoClassification = null;
+  let lastEditAutoClassification = null;
+  let originalEditCode = '';
   let currentSession = null;
+  let recordsPage = 1;
+  const recordsPerPage = 12;
   const views = ['dashboard', 'records', 'new'];
   const $ = id => document.getElementById(id);
 
   function showView(name) {
     views.forEach(v => $(v + 'View').classList.toggle('active-view', v === name));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
-    $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
+    if ($('pageTitle')) $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
     if (name === 'new') prepareNextCode();
   }
 
@@ -152,6 +156,7 @@
     $('refreshButton').textContent = 'Actualizando...';
     try {
       records = await fetchAllRecords();
+      if ($('loginStatus')) $('loginStatus').textContent = '';
       renderAll();
     } catch (error) {
       console.error('loadRecords:', error);
@@ -170,63 +175,160 @@
     renderTable();
   }
 
+  function isRecordComplete(r) {
+    return !!(r.code && r.description && r.client && r.responsible && r.family && r.subfamily && r.subsubfamily) &&
+      !/incompleta|revisi/i.test(r.review_status || '');
+  }
+
+  function validCurrentYearRecords() {
+    const year = new Date().getFullYear();
+    return records.filter(r => Number(r.integration_year) === year);
+  }
+
+  function latestIntegrationRecord() {
+    const year = new Date().getFullYear();
+    const yy = String(year).slice(-2);
+    const currentYearPattern = new RegExp(`^INT_\\d+-${yy}$`, 'i');
+    const anyIntPattern = /^INT[_ -]?(\d+)[_-](\d{2})$/i;
+
+    const currentYearMatch = records
+      .filter(r => Number(r.integration_year) === year && currentYearPattern.test(String(r.code || '').trim()))
+      .sort((a,b) => Number(b.sequence_number || 0) - Number(a.sequence_number || 0))[0];
+
+    if (currentYearMatch) return currentYearMatch;
+
+    return records
+      .filter(r => anyIntPattern.test(String(r.code || '').trim()))
+      .sort((a,b) => {
+        const ay = Number(a.integration_year || 0);
+        const by = Number(b.integration_year || 0);
+        if (by !== ay) return by - ay;
+        return Number(b.sequence_number || 0) - Number(a.sequence_number || 0);
+      })[0] || records.find(r => r.code) || null;
+  }
+
+  function dashboardFilteredRecords() {
+    const q = ($('dashboardSearch')?.value || '').trim().toLowerCase();
+    const year = $('dashboardYearFilter')?.value || '';
+    const family = $('dashboardFamilyFilter')?.value || '';
+    const status = $('dashboardStatusFilter')?.value || '';
+
+    return records.filter(r => {
+      const bag = [r.code, r.description, r.client, r.responsible, r.family, r.subfamily, r.subsubfamily].join(' ').toLowerCase();
+      const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
+      return (!q || bag.includes(q)) &&
+        (!year || String(r.integration_year) === year) &&
+        (!family || r.family === family) &&
+        statusOk;
+    });
+  }
+
+  function renderDashboardTable() {
+    const filtered = dashboardFilteredRecords();
+    const rows = filtered.slice(0, 6);
+
+    if ($('dashboardRecordsBody')) {
+      $('dashboardRecordsBody').innerHTML = rows.map(r => `<tr>
+        <td><span class="industrial-code">${escapeHtml(r.code || '—')}</span></td>
+        <td class="dash-desc">${escapeHtml(r.description || 'Sin descripción')}</td>
+        <td>${escapeHtml(r.client || '—')}</td>
+        <td>${escapeHtml(r.family || '—')}</td>
+        <td><span class="status-pill ${isRecordComplete(r) ? 'complete' : 'incomplete'}">${isRecordComplete(r) ? 'Completo' : 'Incompleto'}</span></td>
+        <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
+        <td><button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button></td>
+      </tr>`).join('') || '<tr><td colspan="7" class="empty-cell">No hay registros para los filtros aplicados.</td></tr>';
+    }
+
+    if ($('dashboardRecordCount')) {
+      $('dashboardRecordCount').textContent = filtered.length
+        ? `Mostrando ${Math.min(6, filtered.length)} de ${filtered.length.toLocaleString('es-PE')} registros`
+        : 'Sin registros';
+    }
+
+    document.querySelectorAll('#dashboardRecordsBody [data-edit-id]').forEach(button => {
+      button.addEventListener('click', () => openEditModal(button.dataset.editId));
+    });
+  }
+
   function renderDashboard() {
     const currentYear = new Date().getFullYear();
-    const thisYear = records.filter(r => Number(r.integration_year) === currentYear).length;
+    const thisYearRecords = validCurrentYearRecords();
     const clients = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size;
-    const incomplete = records.filter(r =>
-      !r.client || !r.responsible || !r.family || !r.subfamily || !r.subsubfamily ||
-      /incompleta|revisi/i.test(r.review_status || '')
-    ).length;
+    const incomplete = records.filter(r => !isRecordComplete(r)).length;
+    const familyCount = new Set(records.map(r => (r.family || '').trim()).filter(Boolean)).size;
+    const latest = latestIntegrationRecord();
 
     $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
-    $('kpiYear').textContent = thisYear.toLocaleString('es-PE');
+    $('kpiYear').textContent = thisYearRecords.length.toLocaleString('es-PE');
     $('kpiClients').textContent = clients.toLocaleString('es-PE');
     $('kpiIncomplete').textContent = incomplete.toLocaleString('es-PE');
-
-    const familyCount = new Set(records.map(r => (r.family || '').trim()).filter(Boolean)).size;
-    const years = [...new Set(records.map(r => Number(r.integration_year)).filter(Boolean))].sort((a,b)=>a-b);
-    const classified = records.filter(r => r.family && r.subfamily && r.subsubfamily).length;
     if ($('statFamilies')) $('statFamilies').textContent = familyCount.toLocaleString('es-PE');
-    if ($('statYears')) $('statYears').textContent = years.length.toLocaleString('es-PE');
-    if ($('statClassified')) $('statClassified').textContent = records.length ? `${Math.round(classified / records.length * 100)}%` : '0%';
-    if ($('sidebarCount')) $('sidebarCount').textContent = `${records.length.toLocaleString('es-PE')} registros`;
+    if ($('currentYearLabel')) $('currentYearLabel').textContent = currentYear;
+    if ($('latestCode')) $('latestCode').textContent = latest?.code || '—';
+    if ($('latestCodeDate')) $('latestCodeDate').textContent = latest?.integration_year ? `Registro ${latest.integration_year}` : 'Registro histórico';
+
+    const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))]
+      .sort((a,b) => a-b);
+    const families = [...new Set(records.map(r => r.family).filter(Boolean))].sort();
+
+    for (const id of ['dashboardYearFilter']) {
+      if ($(id)) {
+        const old = $(id).value;
+        $(id).innerHTML = '<option value="">Todos los años</option>' + years.slice(-12).reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+        $(id).value = old;
+      }
+    }
+    if ($('dashboardFamilyFilter')) {
+      const old = $('dashboardFamilyFilter').value;
+      $('dashboardFamilyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+      $('dashboardFamilyFilter').value = old;
+    }
 
     const byYear = {};
     records.forEach(r => {
       const y = Number(r.integration_year);
-      if (y) byYear[y] = (byYear[y] || 0) + 1;
+      if (y >= 2000 && y <= currentYear) byYear[y] = (byYear[y] || 0) + 1;
     });
-    const topYears = Object.entries(byYear)
-      .sort((a,b)=>Number(b[0])-Number(a[0]))
-      .slice(0,6);
-    const maxYear = Math.max(1, ...topYears.map(([,v]) => v));
+    const chartYears = Object.entries(byYear).sort((a,b) => Number(a[0]) - Number(b[0])).slice(-5);
+    const maxCount = Math.max(1, ...chartYears.map(([,v]) => v));
+
     if ($('yearBars')) {
-      $('yearBars').innerHTML = topYears.map(([year,count]) => `
-        <div class="year-bar-row">
+      $('yearBars').innerHTML = chartYears.map(([year,count]) => `
+        <div class="year-column">
+          <span class="year-count">${count}</span>
+          <div class="year-column-track">
+            <div class="year-column-fill" style="height:${Math.max(12, Math.round(count/maxCount*100))}%"></div>
+          </div>
           <strong>${year}</strong>
-          <div class="year-bar-track"><div class="year-bar-fill" style="width:${Math.max(6, Math.round(count/maxYear*100))}%"></div></div>
-          <span>${count}</span>
-        </div>`).join('') || '<div class="muted">Sin datos anuales.</div>';
+        </div>`).join('');
     }
 
-    $('recentList').innerHTML = records.slice(0, 7).map(r => `
-      <div class="recent-item">
-        <div class="code-pill">${escapeHtml(r.code)}</div>
-        <div>
-          <strong>${escapeHtml(r.description || 'Sin descripción')}</strong>
-          <div class="muted">${escapeHtml(r.client || 'Cliente no definido')}</div>
-        </div>
-        <div class="muted">${r.is_legacy ? `Histórico · ${escapeHtml(r.integration_year || '')}` : formatDate(r.created_at)}</div>
-      </div>`).join('') || '<div class="muted">Aún no hay registros disponibles.</div>';
+    const recent = records.slice(0, 5);
+    $('recentList').innerHTML = recent.map((r, index) => `
+      <button class="recent-row" type="button" data-edit-id="${escapeHtml(r.id)}">
+        <span class="recent-dot ${isRecordComplete(r) ? 'blue' : index === 1 ? 'red' : 'gray'}"></span>
+        <span class="recent-copy">
+          <strong>${escapeHtml(r.code || 'Sin código')}</strong>
+          <small>${escapeHtml(r.client || 'Cliente no especificado')}</small>
+        </span>
+        <span class="recent-time">${r.integration_year ? r.integration_year : '—'}</span>
+      </button>`).join('');
+
+    document.querySelectorAll('#recentList [data-edit-id]').forEach(button => {
+      button.addEventListener('click', () => openEditModal(button.dataset.editId));
+    });
+
+    renderDashboardTable();
   }
 
   function fillFilters() {
-    const years = [...new Set(records.map(r => r.integration_year).filter(Boolean))].sort((a,b) => b-a);
+    const currentYear = new Date().getFullYear();
+    const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))].sort((a,b) => b-a);
     const families = [...new Set(records.map(r => r.family).filter(Boolean))].sort();
     const y = $('yearFilter').value, f = $('familyFilter').value;
+
     $('yearFilter').innerHTML = '<option value="">Todos los años</option>' + years.map(v => `<option value="${v}">${v}</option>`).join('');
-    $('familyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+    $('familyFilter').innerHTML = '<option value="">Todas las familias</option>' + families.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
     $('yearFilter').value = y;
     $('familyFilter').value = f;
   }
@@ -235,18 +337,66 @@
     const q = $('searchInput').value.trim().toLowerCase();
     const year = $('yearFilter').value;
     const family = $('familyFilter').value;
+    const status = $('statusFilter')?.value || '';
+
     const filtered = records.filter(r => {
       const bag = [r.code, r.description, r.client, r.responsible, r.family, r.subfamily, r.subsubfamily].join(' ').toLowerCase();
-      return (!q || bag.includes(q)) && (!year || String(r.integration_year) === year) && (!family || r.family === family);
+      const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
+      return (!q || bag.includes(q)) &&
+        (!year || String(r.integration_year) === year) &&
+        (!family || r.family === family) &&
+        statusOk;
     });
-    $('recordsBody').innerHTML = filtered.map(r => `<tr>
-      <td><span class="code-pill">${escapeHtml(r.code)}</span></td>
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / recordsPerPage));
+    if (recordsPage > totalPages) recordsPage = totalPages;
+    const start = (recordsPage - 1) * recordsPerPage;
+    const pageRows = filtered.slice(start, start + recordsPerPage);
+
+    $('recordsBody').innerHTML = pageRows.map(r => `<tr>
+      <td><span class="industrial-code">${escapeHtml(r.code || '—')}</span></td>
       <td>${escapeHtml(r.description || '')}</td>
       <td>${escapeHtml(r.client || '—')}</td>
       <td>${escapeHtml(r.responsible || '—')}</td>
       <td>${escapeHtml(r.family || '—')}</td>
-      <td>${r.is_legacy ? escapeHtml(String(r.integration_year || '—')) : formatDate(r.created_at)}</td>
-    </tr>`).join('');
+      <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
+      <td class="row-actions">
+        <button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty-cell">No se encontraron registros.</td></tr>';
+
+    if ($('recordsCount')) {
+      const shownFrom = filtered.length ? start + 1 : 0;
+      const shownTo = Math.min(start + recordsPerPage, filtered.length);
+      $('recordsCount').textContent = `Mostrando ${shownFrom}–${shownTo} de ${filtered.length.toLocaleString('es-PE')} registros`;
+    }
+
+    if ($('recordsPagination')) {
+      const buttons = [];
+      const add = (label, page, disabled=false, active=false) =>
+        buttons.push(`<button class="pager-button${active ? ' active' : ''}" data-page="${page}" ${disabled ? 'disabled' : ''}>${label}</button>`);
+
+      add('‹', Math.max(1, recordsPage - 1), recordsPage === 1);
+      const first = Math.max(1, Math.min(recordsPage - 2, totalPages - 4));
+      const last = Math.min(totalPages, first + 4);
+      for (let p = first; p <= last; p++) add(String(p), p, false, p === recordsPage);
+      if (last < totalPages) buttons.push('<span class="pager-ellipsis">…</span>');
+      if (totalPages > 1 && last < totalPages) add(String(totalPages), totalPages, false, recordsPage === totalPages);
+      add('›', Math.min(totalPages, recordsPage + 1), recordsPage === totalPages);
+
+      $('recordsPagination').innerHTML = buttons.join('');
+      $('recordsPagination').querySelectorAll('[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          recordsPage = Number(btn.dataset.page);
+          renderTable();
+          document.querySelector('#recordsView .panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    document.querySelectorAll('#recordsBody [data-edit-id]').forEach(button => {
+      button.addEventListener('click', () => openEditModal(button.dataset.editId));
+    });
   }
 
   async function prepareNextCode() {
@@ -319,6 +469,114 @@
     classificationTimer = setTimeout(runClassification, 350);
   }
 
+
+  function populateEditFamilies(selected = '') {
+    if (!classifier) return;
+    const families = Object.keys(classifier.taxonomy || {}).sort();
+    $('editFamily').innerHTML = '<option value="">Seleccionar familia</option>' + families.map(v => option(v, v === selected)).join('');
+    populateEditSubfamilies(selected, '');
+  }
+
+  function populateEditSubfamilies(family, selected = '') {
+    const subs = classifier?.taxonomy?.[family] ? Object.keys(classifier.taxonomy[family]).sort() : [];
+    $('editSubfamily').innerHTML = '<option value="">Seleccionar subfamilia</option>' + subs.map(v => option(v, v === selected)).join('');
+    populateEditSubsubfamilies(family, selected, '');
+  }
+
+  function populateEditSubsubfamilies(family, subfamily, selected = '') {
+    const values = classifier?.taxonomy?.[family]?.[subfamily] || [];
+    $('editSubsubfamily').innerHTML = '<option value="">Seleccionar sub-subfamilia</option>' + values.map(v => option(v, v === selected)).join('');
+  }
+
+  function setEditClassification(record) {
+    populateEditFamilies(record.family || '');
+    populateEditSubfamilies(record.family || '', record.subfamily || '');
+    populateEditSubsubfamilies(record.family || '', record.subfamily || '', record.subsubfamily || '');
+    lastEditAutoClassification = null;
+    $('editClassificationConfidence').textContent = record.classification_source === 'automatic' ? 'Automática' : 'Manual / histórica';
+    $('editClassificationConfidence').className = 'confidence-badge neutral';
+    $('editClassificationMessage').textContent = 'Clasificación actual cargada. Puedes modificarla manualmente o volver a analizar la descripción.';
+  }
+
+  function openEditModal(id) {
+    const record = records.find(r => String(r.id) === String(id));
+    if (!record) return;
+
+    $('editId').value = record.id;
+    originalEditCode = record.code || '';
+    $('editCode').value = originalEditCode;
+    $('editClient').value = record.client || '';
+    $('editDescription').value = record.description || '';
+    $('editResponsible').value = record.responsible || '';
+    $('editNotes').value = record.notes || '';
+    $('editFormStatus').textContent = '';
+    setEditClassification(record);
+
+    $('editModal').hidden = false;
+    document.body.classList.add('modal-open');
+    setTimeout(() => $('editDescription').focus(), 0);
+  }
+
+  function closeEditModal() {
+    $('editModal').hidden = true;
+    document.body.classList.remove('modal-open');
+    $('editIntegrationForm').reset();
+    lastEditAutoClassification = null;
+  }
+
+  function runEditClassification() {
+    const description = $('editDescription').value.trim();
+    const result = description ? classifier?.classify(description) : null;
+
+    if (!result) {
+      lastEditAutoClassification = null;
+      $('editClassificationConfidence').textContent = 'Sin sugerencia';
+      $('editClassificationConfidence').className = 'confidence-badge neutral';
+      $('editClassificationMessage').textContent = 'No hay suficiente información para sugerir una clasificación.';
+      return;
+    }
+
+    lastEditAutoClassification = result;
+    populateEditFamilies(result.family);
+    populateEditSubfamilies(result.family, result.subfamily);
+    populateEditSubsubfamilies(result.family, result.subfamily, result.subsubfamily);
+
+    const level = result.confidence >= 90 ? 'high' : result.confidence >= 75 ? 'medium' : 'low';
+    $('editClassificationConfidence').textContent = `${result.confidence}% confianza`;
+    $('editClassificationConfidence').className = `confidence-badge ${level}`;
+    $('editClassificationMessage').innerHTML =
+      `<strong>${escapeHtml(result.family)}</strong> → ${escapeHtml(result.subfamily)} → ${escapeHtml(result.subsubfamily)}`;
+  }
+
+
+  async function codeExistsInAnotherRecord(code, currentId) {
+    const normalized = String(code || '').trim();
+    if (!normalized) return false;
+
+    const { data, error } = await supabaseClient
+      .from('integrations')
+      .select('id, code')
+      .eq('code', normalized)
+      .limit(5);
+
+    if (error) throw error;
+    return (data || []).some(row => String(row.id) !== String(currentId));
+  }
+
+  async function updateIntegration(id, payload) {
+    if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
+
+    const { data, error } = await supabaseClient
+      .from('integrations')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   async function createIntegration(payload) {
     if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
     const { data, error } = await supabaseClient.rpc('create_integration', { p_data: payload });
@@ -371,6 +629,118 @@
     }
   });
 
+
+  $('closeEditModal').addEventListener('click', closeEditModal);
+  $('cancelEditButton').addEventListener('click', closeEditModal);
+
+  $('editModal').addEventListener('click', e => {
+    if (e.target === $('editModal')) closeEditModal();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('editModal').hidden) closeEditModal();
+  });
+
+  $('editClassifyButton').addEventListener('click', runEditClassification);
+
+  $('editFamily').addEventListener('change', () => {
+    populateEditSubfamilies($('editFamily').value, '');
+    lastEditAutoClassification = null;
+    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  });
+
+  $('editSubfamily').addEventListener('change', () => {
+    populateEditSubsubfamilies($('editFamily').value, $('editSubfamily').value, '');
+    lastEditAutoClassification = null;
+    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  });
+
+  $('editSubsubfamily').addEventListener('change', () => {
+    lastEditAutoClassification = null;
+    $('editClassificationMessage').textContent = 'Clasificación ajustada manualmente.';
+  });
+
+  $('editIntegrationForm').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const id = $('editId').value;
+    const newCode = $('editCode').value.trim();
+
+    $('editFormStatus').textContent = '';
+    $('saveEditButton').disabled = true;
+
+    try {
+      if (!newCode) {
+        $('editFormStatus').textContent = 'El código de integración no puede quedar vacío.';
+        $('editCode').focus();
+        return;
+      }
+
+      // If the code changed, explicitly prevent duplicates across the full historical base.
+      if (newCode !== originalEditCode) {
+        $('editFormStatus').textContent = 'Validando código...';
+        const duplicate = await codeExistsInAnotherRecord(newCode, id);
+        if (duplicate) {
+          $('editFormStatus').textContent = `El código ${newCode} ya existe en otro registro.`;
+          $('editCode').focus();
+          $('editCode').select();
+          return;
+        }
+      }
+
+      $('editFormStatus').textContent = 'Guardando cambios...';
+
+      const codeChanged = newCode !== originalEditCode;
+
+      const payload = {
+        code: newCode,
+        description: $('editDescription').value.trim(),
+        client: $('editClient').value.trim(),
+        responsible: $('editResponsible').value.trim(),
+        family: $('editFamily').value || null,
+        subfamily: $('editSubfamily').value || null,
+        subsubfamily: $('editSubsubfamily').value || null,
+        notes: $('editNotes').value.trim() || null,
+        classification_source: lastEditAutoClassification ? 'automatic' : 'manual',
+        classification_confidence: lastEditAutoClassification?.confidence || null,
+        review_status: (
+          newCode &&
+          $('editClient').value.trim() &&
+          $('editResponsible').value.trim() &&
+          $('editFamily').value &&
+          $('editSubfamily').value &&
+          $('editSubsubfamily').value
+        ) ? 'OK' : 'REQUIERE REVISIÓN'
+      };
+
+      const updated = await updateIntegration(id, payload);
+
+      // The existing audit trigger stores BEFORE and AFTER snapshots automatically,
+      // so a code correction is traceable without extra frontend writes.
+      originalEditCode = updated.code || newCode;
+
+      $('editFormStatus').textContent = codeChanged
+        ? `Código actualizado a ${updated.code || newCode}. Cambios guardados.`
+        : 'Cambios guardados correctamente.';
+
+      await loadRecords();
+      setTimeout(closeEditModal, 500);
+    } catch (err) {
+      console.error('updateIntegration:', err);
+      const message = String(err?.message || '');
+
+      if (/duplicate key|unique/i.test(message)) {
+        $('editFormStatus').textContent = 'Ese código ya está registrado.';
+      } else if (/permission|403|rls/i.test(message)) {
+        $('editFormStatus').textContent = 'Tu usuario no tiene permiso para actualizar registros.';
+      } else {
+        $('editFormStatus').textContent = 'No se pudieron guardar los cambios.';
+      }
+    } finally {
+      $('saveEditButton').disabled = false;
+    }
+  });
+
   $('logoutButton').addEventListener('click', signOut);
 
   $('integrationForm').addEventListener('submit', async e => {
@@ -408,6 +778,33 @@
 
   document.querySelectorAll('.nav-item').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
   $('heroNewButton').addEventListener('click', () => showView('new'));
+  const dashboardViewAll = $('dashboardViewAll');
+  if (dashboardViewAll) dashboardViewAll.addEventListener('click', () => showView('records'));
+
+  const yearsViewDetail = $('yearsViewDetail');
+  if (yearsViewDetail) yearsViewDetail.addEventListener('click', () => showView('records'));
+
+  const incompleteCard = $('incompleteCard');
+  if (incompleteCard) incompleteCard.addEventListener('click', () => {
+    showView('records');
+    if ($('statusFilter')) $('statusFilter').value = 'incomplete';
+    recordsPage = 1;
+    renderTable();
+  });
+
+  const clientsCard = $('clientsCard');
+  if (clientsCard) clientsCard.addEventListener('click', () => showView('records'));
+  const familiesCard = $('familiesCard');
+  if (familiesCard) familiesCard.addEventListener('click', () => showView('records'));
+
+  ['dashboardSearch','dashboardYearFilter','dashboardFamilyFilter','dashboardStatusFilter'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', renderDashboardTable);
+    if (el) el.addEventListener('change', renderDashboardTable);
+  });
+
+  const dashboardNextPage = $('dashboardNextPage');
+  if (dashboardNextPage) dashboardNextPage.addEventListener('click', () => showView('records'));
   const heroRecordsButton = $('heroRecordsButton');
   if (heroRecordsButton) heroRecordsButton.addEventListener('click', () => showView('records'));
   const recentViewAll = $('recentViewAll');
@@ -423,7 +820,13 @@
   });
   $('newFromRecords').addEventListener('click', () => showView('new'));
   $('refreshButton').addEventListener('click', loadRecords);
-  ['searchInput','yearFilter','familyFilter'].forEach(id => $(id).addEventListener('input', renderTable));
+  ['searchInput','yearFilter','familyFilter','statusFilter'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    const handler = () => { recordsPage = 1; renderTable(); };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+  });
   $('description').addEventListener('input', scheduleClassification);
   $('description').addEventListener('blur', runClassification);
   $('classifyButton').addEventListener('click', runClassification);
