@@ -1,0 +1,26 @@
+V2.8 - ITEM MASTER CATEGORY / GROUP / SERIES
+
+La clasificación de las integraciones ahora replica la jerarquía de Item Master Data:
+
+1. Category
+2. Group
+3. Series
+
+Category disponible:
+A - Training
+B - On-Site Services
+C - Service Other
+D - Application Solution
+E - Custom Solutions
+F - Local Product Configuration
+X - N/A
+
+Los Group y Series se habilitan de forma dependiente.
+
+Los históricos permanecen intactos y pueden recibir Category / Group / Series posteriormente desde Editar.
+
+IMPORTANTE:
+Antes de usar V2.8, ejecutar en Supabase SQL Editor:
+supabase/migrations/20260911_v28_category_group_series.sql
+
+Este paquete NO incluye config.js. Conserva tu configuración actual de Supabase.

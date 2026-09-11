@@ -83,7 +83,7 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.7</span>
+        <span>v2.8</span>
       </div>
 
       <div class="sidebar-footer">
@@ -157,10 +157,10 @@
             <i>›</i>
           </button>
 
-          <button class="summary-card" id="unclassifiedCard" type="button">
-            <span>Sin clasificar</span>
-            <strong id="statUnclassified">0</strong>
-            <small>registros históricos</small>
+          <button class="summary-card" id="unmappedCard" type="button">
+            <span>Sin Item Master</span>
+            <strong id="statUnmapped">0</strong>
+            <small>sin Category / Group / Series</small>
             <i>›</i>
           </button>
         </section>
@@ -185,8 +185,8 @@
                 <select id="dashboardYearFilter"><option value="">Todos los años</option></select>
               </div>
               <div class="filter-field">
-                <span>Clasificación</span>
-                <select id="dashboardClassificationFilter"><option value="">Todas las clasificaciones</option></select>
+                <span>Group</span>
+                <select id="dashboardGroupFilter"><option value="">Todos los Group</option></select>
               </div>
               <div class="filter-field">
                 <span>Estado</span>
@@ -205,7 +205,7 @@
                     <th>Código</th>
                     <th>Descripción</th>
                     <th>Cliente</th>
-                    <th>Clasificación</th>
+                    <th>Group / Series</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Acciones</th>
@@ -263,7 +263,7 @@
         <div class="filters">
           <input id="searchInput" type="search" placeholder="Buscar código, cliente, descripción..." />
           <select id="yearFilter"><option value="">Todos los años</option></select>
-          <select id="classificationFilter"><option value="">Todas las clasificaciones</option></select>
+          <select id="groupFilter"><option value="">Todos los Group</option></select>
           <select id="statusFilter">
             <option value="">Todos los estados</option>
             <option value="complete">Completo</option>
@@ -274,7 +274,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Clasificación</th><th>Fecha</th><th class="actions-col">Acciones</th></tr>
+              <tr><th>Código</th><th>Descripción</th><th>Cliente</th><th>Responsable</th><th>Group / Series</th><th>Fecha</th><th class="actions-col">Acciones</th></tr>
             </thead>
             <tbody id="recordsBody"></tbody>
           </table>
@@ -311,23 +311,31 @@
 
           <div class="manual-classification-intro full">
             <div>
-              <strong>Clasificación corporativa</strong>
-              <p>Selecciona manualmente la clasificación y subclasificación definidas para los nuevos registros.</p>
+              <strong>Clasificación Item Master</strong>
+              <p>Selecciona manualmente Category → Group → Series según el estándar definido para Item Master Data.</p>
             </div>
             <span class="manual-badge">Selección manual</span>
           </div>
 
-          <label>Clasificación
-            <select id="classificationCode" name="classificationCode" required>
-              <option value="">Seleccionar clasificación</option>
+          <label>Category
+            <select id="categoryCode" name="categoryCode" required>
+              <option value="">Seleccionar Category</option>
             </select>
           </label>
-          <label>Subclasificación
-            <select id="subclassificationCode" name="subclassificationCode" required disabled>
-              <option value="">Seleccionar subclasificación</option>
+
+          <label>Group
+            <select id="groupCode" name="groupCode" required disabled>
+              <option value="">Seleccionar Group</option>
             </select>
           </label>
-          <div class="classification-help full">El catálogo reemplaza Familia / Subfamilia / Sub-subfamilia para todos los registros creados desde esta versión.</div>
+
+          <label>Series
+            <select id="seriesCode" name="seriesCode" required disabled>
+              <option value="">Seleccionar Series</option>
+            </select>
+          </label>
+
+          <div class="classification-help full">La jerarquía se guarda en el registro y también puede asignarse posteriormente a integraciones históricas.</div>
           <label class="full">Observaciones<textarea id="notes" name="notes" rows="3"></textarea></label>
           <div class="form-actions full">
             <span id="formStatus" class="status"></span>
@@ -339,7 +347,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.7</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>
@@ -378,21 +386,27 @@
 
         <div class="manual-classification-intro full historical-classification">
           <div>
-            <strong>Clasificación corporativa</strong>
-            <p>Los registros históricos pueden permanecer sin clasificar o actualizarse manualmente con el nuevo catálogo.</p>
+            <strong>Clasificación Item Master</strong>
+            <p>Los sin Category / Group / Series pueden permanecer sin clasificación o actualizarse manualmente con Category → Group → Series.</p>
           </div>
-          <span id="editClassificationState" class="manual-badge">Sin clasificar</span>
+          <span id="editHierarchyState" class="manual-badge">Sin Item Master</span>
         </div>
 
-        <label>Clasificación
-          <select id="editClassificationCode">
-            <option value="">Sin clasificar</option>
+        <label>Category
+          <select id="editCategoryCode">
+            <option value="">Sin Category</option>
           </select>
         </label>
 
-        <label>Subclasificación
-          <select id="editSubclassificationCode" disabled>
-            <option value="">Sin subclasificación</option>
+        <label>Group
+          <select id="editGroupCode" disabled>
+            <option value="">Sin Group</option>
+          </select>
+        </label>
+
+        <label>Series
+          <select id="editSeriesCode" disabled>
+            <option value="">Sin Series</option>
           </select>
         </label>
 
@@ -416,7 +430,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="classification-catalog.js"></script>
+  <script src="item-master-hierarchy.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

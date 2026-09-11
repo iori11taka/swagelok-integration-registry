@@ -2685,3 +2685,95 @@ body {
   background: #edf1f4;
   color: #627787;
 }
+
+
+/* =========================================================
+   V2.8 — Category / Group / Series
+   ========================================================= */
+#newView .form-card {
+  border-radius: 8px;
+}
+
+#newView .form-card::before {
+  content: "Información General";
+  display: block;
+  grid-column: 1 / -1;
+  margin: -22px -22px 4px;
+  padding: 12px 18px;
+  background: linear-gradient(90deg, #e7f3fb, #f4f9fc);
+  border-bottom: 1px solid #d9e7f0;
+  color: #0c4774;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+#newView .manual-classification-intro {
+  margin-top: 6px;
+  background: linear-gradient(90deg, #e6f3fb, #f7fbfd);
+  border: 0;
+  border-radius: 5px;
+  border-left: 4px solid #0872bd;
+}
+
+#newView label:has(#categoryCode),
+#newView label:has(#groupCode),
+#newView label:has(#seriesCode) {
+  min-width: 0;
+}
+
+#newView #categoryCode,
+#newView #groupCode,
+#newView #seriesCode,
+#editCategoryCode,
+#editGroupCode,
+#editSeriesCode {
+  font-weight: 650;
+}
+
+#newView .form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#newView label:has(#description),
+#newView label:has(#notes),
+#newView .manual-classification-intro,
+#newView .classification-help,
+#newView .form-actions {
+  grid-column: 1 / -1;
+}
+
+#newView label:has(#client),
+#newView label:has(#responsible) {
+  grid-column: span 1;
+}
+
+#newView label:has(#description) textarea {
+  min-height: 88px;
+}
+
+.historical-classification {
+  background: linear-gradient(90deg, #eef5f9, #fbfdfe);
+}
+
+@media (max-width: 980px) {
+  #newView .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #newView label:has(#categoryCode),
+  #newView label:has(#groupCode),
+  #newView label:has(#seriesCode) {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 650px) {
+  #newView .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #newView label,
+  #newView .full {
+    grid-column: 1 !important;
+  }
+}

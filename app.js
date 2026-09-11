@@ -11,222 +11,84 @@
       })
     : null;
 
-  const classificationCatalog = window.INTEGRATION_CLASSIFICATION_CATALOG || [];
-  let records = [];
-  let originalEditCode = '';
-  let currentSession = null;
-  let recordsPage = 1;
-  const recordsPerPage = 12;
-  const views = ['dashboard', 'records', 'new'];
-  const $ = id => document.getElementById(id);
+  const itemMasterHierarchy = window.ITEM_MASTER_HIERARCHY || [];
 
-  function getClassification(code) {
-    return classificationCatalog.find(item => item.code === code) || null;
+  function getCategory(code) {
+    return itemMasterHierarchy.find(item => item.code === code) || null;
   }
 
-  function getSubclassification(classificationCode, subclassificationCode) {
-    return getClassification(classificationCode)?.items?.find(item => item.code === subclassificationCode) || null;
+  function getGroup(categoryCode, groupCode) {
+    return getCategory(categoryCode)?.groups?.find(item => item.code === groupCode) || null;
   }
 
-  function classificationLabel(record, compact = false) {
-    if (!record?.classification_code) return 'Sin clasificar';
-    const classification = record.classification_name || record.classification_code;
-    if (!record.subclassification_code) return compact ? record.classification_code : `${record.classification_code} — ${classification}`;
-    const sub = record.subclassification_name || record.subclassification_code;
+  function getSeries(categoryCode, groupCode, seriesCode) {
+    return getGroup(categoryCode, groupCode)?.series?.find(item => item.code === seriesCode) || null;
+  }
+
+  function hierarchyLabel(record, compact = false) {
+    if (!record?.category_code) return 'Sin Item Master';
+    if (!record?.group_code) return compact ? record.category_code : `${record.category_code} — ${record.category_name || ''}`;
+    if (!record?.series_code) return compact
+      ? `${record.group_code} · ${record.group_name || ''}`
+      : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''}`;
     return compact
-      ? `${record.subclassification_code} · ${sub}`
-      : `${record.classification_code} — ${classification} / ${record.subclassification_code} — ${sub}`;
+      ? `${record.group_code} · ${record.series_code} — ${record.series_name || ''}`
+      : `${record.category_code} — ${record.category_name || ''} / ${record.group_code} — ${record.group_name || ''} / ${record.series_code} — ${record.series_name || ''}`;
   }
 
-  function isClassified(record) {
-    return !!(record?.classification_code && record?.subclassification_code);
+  function isMapped(record) {
+    return !!(record?.category_code && record?.group_code && record?.series_code);
   }
 
-  function populateClassificationSelect(selectId, selected = '', allowBlank = true) {
+  function populateCategorySelect(selectId, selected = '', allowBlank = true) {
     const select = $(selectId);
     if (!select) return;
     const first = allowBlank
-      ? '<option value="">Sin clasificar</option>'
-      : '<option value="">Seleccionar clasificación</option>';
-    select.innerHTML = first + classificationCatalog.map(item =>
+      ? '<option value="">Sin Category</option>'
+      : '<option value="">Seleccionar Category</option>';
+    select.innerHTML = first + itemMasterHierarchy.map(item =>
       `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
     ).join('');
   }
 
-  function populateSubclassificationSelect(selectId, classificationCode, selected = '', allowBlank = true) {
+  function populateGroupSelect(selectId, categoryCode, selected = '', allowBlank = true) {
     const select = $(selectId);
     if (!select) return;
-    const classification = getClassification(classificationCode);
+    const category = getCategory(categoryCode);
     const first = allowBlank
-      ? '<option value="">Sin subclasificación</option>'
-      : '<option value="">Seleccionar subclasificación</option>';
-    select.innerHTML = first + (classification?.items || []).map(item =>
+      ? '<option value="">Sin Group</option>'
+      : '<option value="">Seleccionar Group</option>';
+    select.innerHTML = first + (category?.groups || []).map(item =>
       `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
     ).join('');
-    select.disabled = !classificationCode;
+    select.disabled = !categoryCode;
   }
 
-  function selectedClassificationPayload(classificationCode, subclassificationCode) {
-    const classification = getClassification(classificationCode);
-    const subclassification = getSubclassification(classificationCode, subclassificationCode);
+  function populateSeriesSelect(selectId, categoryCode, groupCode, selected = '', allowBlank = true) {
+    const select = $(selectId);
+    if (!select) return;
+    const group = getGroup(categoryCode, groupCode);
+    const first = allowBlank
+      ? '<option value="">Sin Series</option>'
+      : '<option value="">Seleccionar Series</option>';
+    select.innerHTML = first + (group?.series || []).map(item =>
+      `<option value="${escapeHtml(item.code)}"${item.code === selected ? ' selected' : ''}>${escapeHtml(item.code)} — ${escapeHtml(item.name)}</option>`
+    ).join('');
+    select.disabled = !(categoryCode && groupCode);
+  }
+
+  function selectedHierarchyPayload(categoryCode, groupCode, seriesCode) {
+    const category = getCategory(categoryCode);
+    const group = getGroup(categoryCode, groupCode);
+    const series = getSeries(categoryCode, groupCode, seriesCode);
     return {
-      classification_code: classification?.code || null,
-      classification_name: classification?.name || null,
-      subclassification_code: subclassification?.code || null,
-      subclassification_name: subclassification?.name || null
+      category_code: category?.code || null,
+      category_name: category?.name || null,
+      group_code: group?.code || null,
+      group_name: group?.name || null,
+      series_code: series?.code || null,
+      series_name: series?.name || null
     };
-  }
-
-  function showView(name) {
-    views.forEach(v => $(v + 'View').classList.toggle('active-view', v === name));
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
-    if ($('pageTitle')) $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
-    if (name === 'new') prepareNextCode();
-  }
-
-  function setAuthGate(open) {
-    $('authGate').classList.toggle('auth-gate-hidden', !open);
-    document.body.classList.toggle('auth-locked', open);
-  }
-
-  function showRecoveryMode() {
-    setAuthGate(true);
-    $('loginForm').hidden = true;
-    $('recoveryForm').hidden = false;
-    $('authTitle').textContent = 'Crear nueva contraseña';
-    const intro = document.querySelector('.auth-copy p:last-child');
-    if (intro) intro.textContent = 'Define una nueva contraseña para tu cuenta autorizada.';
-    $('recoveryStatus').textContent = '';
-  }
-
-  function showLoginMode() {
-    $('loginForm').hidden = false;
-    $('recoveryForm').hidden = true;
-    $('authTitle').textContent = 'Iniciar sesión';
-    const intro = document.querySelector('.auth-copy p:last-child');
-    if (intro) intro.textContent = 'Accede con el usuario autorizado de Supabase para consultar y registrar integraciones.';
-  }
-
-  function setSessionUI(session) {
-    currentSession = session || null;
-    if (session?.user) {
-      $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
-      $('sessionBox').hidden = false;
-      setAuthGate(false);
-    } else {
-      $('sessionEmail').textContent = '';
-      $('sessionBox').hidden = true;
-      setAuthGate(true);
-      records = [];
-      renderAll();
-    }
-  }
-
-  async function initializeAuth() {
-    if (!supabaseClient) {
-      $('loginStatus').textContent = 'Falta configurar Supabase en config.js.';
-      setAuthGate(true);
-      return;
-    }
-
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error) console.error('getSession:', error);
-    setSessionUI(data?.session || null);
-
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        currentSession = session || null;
-        showRecoveryMode();
-        return;
-      }
-      setSessionUI(session);
-      if (session) await loadRecords();
-    });
-
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    if (hash.get('type') === 'recovery') {
-      showRecoveryMode();
-    } else if (data?.session) {
-      await loadRecords();
-    }
-  }
-
-  async function signIn(email, password) {
-    $('loginStatus').textContent = 'Validando acceso...';
-    $('loginButton').disabled = true;
-    try {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      setSessionUI(data.session);
-      $('loginStatus').textContent = '';
-      $('loginForm').reset();
-      await loadRecords();
-    } catch (err) {
-      console.error(err);
-      const msg = String(err?.message || '');
-      $('loginStatus').textContent =
-        /invalid login credentials/i.test(msg)
-          ? 'Correo o contraseña incorrectos.'
-          : 'No se pudo iniciar sesión. Revisa el usuario y la conexión.';
-    } finally {
-      $('loginButton').disabled = false;
-    }
-  }
-
-  async function signOut() {
-    if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
-    setSessionUI(null);
-    showView('dashboard');
-  }
-
-  async function fetchAllRecords() {
-    const pageSize = 1000;
-    let from = 0;
-    let all = [];
-    while (true) {
-      const { data, error } = await supabaseClient
-        .from('integrations')
-        .select('*')
-        .order('integration_year', { ascending: false })
-        .order('sequence_number', { ascending: false })
-        .range(from, from + pageSize - 1);
-      if (error) throw error;
-      const batch = data || [];
-      all = all.concat(batch);
-      if (batch.length < pageSize) break;
-      from += pageSize;
-    }
-    return all;
-  }
-
-  async function loadRecords() {
-    if (!supabaseClient || !currentSession) {
-      records = [];
-      renderAll();
-      return;
-    }
-    $('refreshButton').disabled = true;
-    $('refreshButton').textContent = 'Actualizando...';
-    try {
-      records = await fetchAllRecords();
-      if ($('loginStatus')) $('loginStatus').textContent = '';
-      renderAll();
-    } catch (error) {
-      console.error('loadRecords:', error);
-      if (/jwt|auth|permission|row-level|rls/i.test(String(error?.message || ''))) {
-        $('loginStatus').textContent = 'La sesión no tiene permiso para consultar los registros.';
-      }
-    } finally {
-      $('refreshButton').disabled = false;
-      $('refreshButton').textContent = 'Actualizar';
-    }
-  }
-
-  function renderAll() {
-    renderDashboard();
-    fillFilters();
-    renderTable();
   }
 
   function isRecordComplete(r) {
@@ -264,15 +126,15 @@
   function dashboardFilteredRecords() {
     const q = ($('dashboardSearch')?.value || '').trim().toLowerCase();
     const year = $('dashboardYearFilter')?.value || '';
-    const classification = $('dashboardClassificationFilter')?.value || '';
+    const group = $('dashboardGroupFilter')?.value || '';
     const status = $('dashboardStatusFilter')?.value || '';
 
     return records.filter(r => {
-      const bag = [r.code, r.description, r.client, r.responsible, r.classification_code, r.classification_name, r.subclassification_code, r.subclassification_name].join(' ').toLowerCase();
+      const bag = [r.code, r.description, r.client, r.responsible, r.category_code, r.category_name, r.group_code, r.group_name, r.series_code, r.series_name].join(' ').toLowerCase();
       const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
       return (!q || bag.includes(q)) &&
         (!year || String(r.integration_year) === year) &&
-        (!classification || r.classification_code === classification) &&
+        (!group || r.group_code === group) &&
         statusOk;
     });
   }
@@ -286,7 +148,7 @@
         <td><span class="industrial-code">${escapeHtml(r.code || '—')}</span></td>
         <td class="dash-desc">${escapeHtml(r.description || 'Sin descripción')}</td>
         <td>${escapeHtml(r.client || '—')}</td>
-        <td>${escapeHtml(classificationLabel(r, true))}</td>
+        <td>${escapeHtml(hierarchyLabel(r, true))}</td>
         <td><span class="status-pill ${isRecordComplete(r) ? 'complete' : 'incomplete'}">${isRecordComplete(r) ? 'Completo' : 'Incompleto'}</span></td>
         <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
         <td><button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button></td>
@@ -309,21 +171,21 @@
     const thisYearRecords = validCurrentYearRecords();
     const clients = new Set(records.map(r => (r.client || '').trim().toLowerCase()).filter(Boolean)).size;
     const incomplete = records.filter(r => !isRecordComplete(r)).length;
-    const unclassifiedCount = records.filter(r => !isClassified(r)).length;
+    const unmappedCount = records.filter(r => !isMapped(r)).length;
     const latest = latestIntegrationRecord();
 
     $('kpiTotal').textContent = records.length.toLocaleString('es-PE');
     $('kpiYear').textContent = thisYearRecords.length.toLocaleString('es-PE');
     $('kpiClients').textContent = clients.toLocaleString('es-PE');
     $('kpiIncomplete').textContent = incomplete.toLocaleString('es-PE');
-    if ($('statUnclassified')) $('statUnclassified').textContent = unclassifiedCount.toLocaleString('es-PE');
+    if ($('statUnmapped')) $('statUnmapped').textContent = unmappedCount.toLocaleString('es-PE');
     if ($('currentYearLabel')) $('currentYearLabel').textContent = currentYear;
     if ($('latestCode')) $('latestCode').textContent = latest?.code || '—';
     if ($('latestCodeDate')) $('latestCodeDate').textContent = latest?.integration_year ? `Registro ${latest.integration_year}` : 'Registro histórico';
 
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))]
       .sort((a,b) => a-b);
-    const classifications = classificationCatalog;
+    const groups = itemMasterHierarchy.flatMap(category => category.groups || []).filter((g, i, arr) => arr.findIndex(x => x.code === g.code) === i);
 
     for (const id of ['dashboardYearFilter']) {
       if ($(id)) {
@@ -332,12 +194,12 @@
         $(id).value = old;
       }
     }
-    if ($('dashboardClassificationFilter')) {
-      const old = $('dashboardClassificationFilter').value;
-      $('dashboardClassificationFilter').innerHTML =
-        '<option value="">Todas las clasificaciones</option>' +
-        classifications.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.name)}</option>`).join('');
-      $('dashboardClassificationFilter').value = old;
+    if ($('dashboardGroupFilter')) {
+      const old = $('dashboardGroupFilter').value;
+      $('dashboardGroupFilter').innerHTML =
+        '<option value="">Todos los Group</option>' +
+        groups.map(g => `<option value="${escapeHtml(g.code)}">${escapeHtml(g.code)} — ${escapeHtml(g.name)}</option>`).join('');
+      $('dashboardGroupFilter').value = old;
     }
 
     const byYear = {};
@@ -380,27 +242,27 @@
   function fillFilters() {
     const currentYear = new Date().getFullYear();
     const years = [...new Set(records.map(r => Number(r.integration_year)).filter(y => y >= 2000 && y <= currentYear))].sort((a,b) => b-a);
-    const classifications = classificationCatalog;
-    const y = $('yearFilter').value, c = $('classificationFilter').value;
+    const groups = itemMasterHierarchy.flatMap(category => category.groups || []).filter((g, i, arr) => arr.findIndex(x => x.code === g.code) === i);
+    const y = $('yearFilter').value, g = $('groupFilter').value;
 
     $('yearFilter').innerHTML = '<option value="">Todos los años</option>' + years.map(v => `<option value="${v}">${v}</option>`).join('');
-    $('classificationFilter').innerHTML = '<option value="">Todas las clasificaciones</option>' + classifications.map(v => `<option value="${escapeHtml(v.code)}">${escapeHtml(v.code)} — ${escapeHtml(v.name)}</option>`).join('');
+    $('groupFilter').innerHTML = '<option value="">Todos los Group</option>' + groups.map(v => `<option value="${escapeHtml(v.code)}">${escapeHtml(v.code)} — ${escapeHtml(v.name)}</option>`).join('');
     $('yearFilter').value = y;
-    $('classificationFilter').value = c;
+    $('groupFilter').value = g;
   }
 
   function renderTable() {
     const q = $('searchInput').value.trim().toLowerCase();
     const year = $('yearFilter').value;
-    const classification = $('classificationFilter').value;
+    const group = $('groupFilter').value;
     const status = $('statusFilter')?.value || '';
 
     const filtered = records.filter(r => {
-      const bag = [r.code, r.description, r.client, r.responsible, r.classification_code, r.classification_name, r.subclassification_code, r.subclassification_name].join(' ').toLowerCase();
+      const bag = [r.code, r.description, r.client, r.responsible, r.category_code, r.category_name, r.group_code, r.group_name, r.series_code, r.series_name].join(' ').toLowerCase();
       const statusOk = !status || (status === 'complete' ? isRecordComplete(r) : !isRecordComplete(r));
       return (!q || bag.includes(q)) &&
         (!year || String(r.integration_year) === year) &&
-        (!classification || r.classification_code === classification) &&
+        (!group || r.group_code === group) &&
         statusOk;
     });
 
@@ -414,7 +276,7 @@
       <td>${escapeHtml(r.description || '')}</td>
       <td>${escapeHtml(r.client || '—')}</td>
       <td>${escapeHtml(r.responsible || '—')}</td>
-      <td>${escapeHtml(classificationLabel(r, true))}</td>
+      <td>${escapeHtml(hierarchyLabel(r, true))}</td>
       <td>${r.integration_year ? escapeHtml(String(r.integration_year)) : '—'}</td>
       <td class="row-actions">
         <button class="table-edit" type="button" data-edit-id="${escapeHtml(r.id)}">Editar</button>
@@ -464,23 +326,26 @@
     $('code').value = error ? 'Se asignará al guardar' : data;
   }
 
-  function initializeNewClassification() {
-    populateClassificationSelect('classificationCode', '', false);
-    populateSubclassificationSelect('subclassificationCode', '', '', false);
+  function initializeNewHierarchy() {
+    populateCategorySelect('categoryCode', '', false);
+    populateGroupSelect('groupCode', '', '', false);
+    populateSeriesSelect('seriesCode', '', '', '', false);
   }
 
   function setEditClassification(record) {
-    populateClassificationSelect('editClassificationCode', record.classification_code || '', true);
-    populateSubclassificationSelect(
-      'editSubclassificationCode',
-      record.classification_code || '',
-      record.subclassification_code || '',
+    populateCategorySelect('editCategoryCode', record.category_code || '', true);
+    populateGroupSelect('editGroupCode', record.category_code || '', record.group_code || '', true);
+    populateSeriesSelect(
+      'editSeriesCode',
+      record.category_code || '',
+      record.group_code || '',
+      record.series_code || '',
       true
     );
-    const state = $('editClassificationState');
+    const state = $('editHierarchyState');
     if (state) {
-      state.textContent = isClassified(record) ? `${record.subclassification_code} asignada` : 'Sin clasificar';
-      state.className = `manual-badge${isClassified(record) ? ' assigned' : ''}`;
+      state.textContent = isMapped(record) ? `${record.series_code} asignada` : 'Sin Item Master';
+      state.className = `manual-badge${isMapped(record) ? ' assigned' : ''}`;
     }
   }
 
@@ -576,27 +441,38 @@
     if (e.key === 'Escape' && !$('editModal').hidden) closeEditModal();
   });
 
-  $('editClassificationCode').addEventListener('change', () => {
-    populateSubclassificationSelect(
-      'editSubclassificationCode',
-      $('editClassificationCode').value,
-      '',
-      true
-    );
-    const state = $('editClassificationState');
+  $('editCategoryCode').addEventListener('change', () => {
+    populateGroupSelect('editGroupCode', $('editCategoryCode').value, '', true);
+    populateSeriesSelect('editSeriesCode', '', '', '', true);
+    const state = $('editHierarchyState');
     if (state) {
-      state.textContent = $('editClassificationCode').value ? 'Selecciona subclasificación' : 'Sin clasificar';
+      state.textContent = $('editCategoryCode').value ? 'Selecciona Group' : 'Sin Item Master';
       state.className = 'manual-badge';
     }
   });
 
-  $('editSubclassificationCode').addEventListener('change', () => {
-    const state = $('editClassificationState');
+  $('editGroupCode').addEventListener('change', () => {
+    populateSeriesSelect(
+      'editSeriesCode',
+      $('editCategoryCode').value,
+      $('editGroupCode').value,
+      '',
+      true
+    );
+    const state = $('editHierarchyState');
+    if (state) {
+      state.textContent = $('editGroupCode').value ? 'Selecciona Series' : 'Sin Group';
+      state.className = 'manual-badge';
+    }
+  });
+
+  $('editSeriesCode').addEventListener('change', () => {
+    const state = $('editHierarchyState');
     if (!state) return;
-    state.textContent = $('editSubclassificationCode').value
-      ? `${$('editSubclassificationCode').value} asignada`
-      : ($('editClassificationCode').value ? 'Sin subclasificación' : 'Sin clasificar');
-    state.className = `manual-badge${$('editSubclassificationCode').value ? ' assigned' : ''}`;
+    state.textContent = $('editSeriesCode').value
+      ? `${$('editSeriesCode').value} asignada`
+      : 'Sin Series';
+    state.className = `manual-badge${$('editSeriesCode').value ? ' assigned' : ''}`;
   });
 
   $('editIntegrationForm').addEventListener('submit', async e => {
@@ -636,9 +512,10 @@
         description: $('editDescription').value.trim(),
         client: $('editClient').value.trim(),
         responsible: $('editResponsible').value.trim(),
-        ...selectedClassificationPayload(
-          $('editClassificationCode').value,
-          $('editSubclassificationCode').value
+        ...selectedHierarchyPayload(
+          $('editCategoryCode').value,
+          $('editGroupCode').value,
+          $('editSeriesCode').value
         ),
         notes: $('editNotes').value.trim() || null,
         review_status: (
@@ -682,11 +559,12 @@
   $('integrationForm').addEventListener('submit', async e => {
     e.preventDefault();
     $('formStatus').textContent = 'Guardando...';
-    const classificationCode = $('classificationCode').value;
-    const subclassificationCode = $('subclassificationCode').value;
+    const categoryCode = $('categoryCode').value;
+    const groupCode = $('groupCode').value;
+    const seriesCode = $('seriesCode').value;
 
-    if (!classificationCode || !subclassificationCode) {
-      $('formStatus').textContent = 'Selecciona la clasificación y subclasificación.';
+    if (!categoryCode || !groupCode || !seriesCode) {
+      $('formStatus').textContent = 'Selecciona Category, Group y Series.';
       return;
     }
 
@@ -694,14 +572,14 @@
       description: $('description').value.trim(),
       client: $('client').value.trim(),
       responsible: $('responsible').value.trim(),
-      ...selectedClassificationPayload(classificationCode, subclassificationCode),
+      ...selectedHierarchyPayload(categoryCode, groupCode, seriesCode),
       notes: $('notes').value.trim() || null
     };
     try {
       const created = await createIntegration(payload);
       $('formStatus').textContent = `Guardado: ${created.code || created}`;
       e.target.reset();
-      initializeNewClassification();
+      initializeNewHierarchy();
       await loadRecords();
       await prepareNextCode();
     } catch (err) {
@@ -731,15 +609,15 @@
 
   const clientsCard = $('clientsCard');
   if (clientsCard) clientsCard.addEventListener('click', () => showView('records'));
-  const unclassifiedCard = $('unclassifiedCard');
-  if (unclassifiedCard) unclassifiedCard.addEventListener('click', () => {
+  const unmappedCard = $('unmappedCard');
+  if (unmappedCard) unmappedCard.addEventListener('click', () => {
     showView('records');
-    if ($('classificationFilter')) $('classificationFilter').value = '';
+    if ($('groupFilter')) $('groupFilter').value = '';
     recordsPage = 1;
     renderTable();
   });
 
-  ['dashboardSearch','dashboardYearFilter','dashboardClassificationFilter','dashboardStatusFilter'].forEach(id => {
+  ['dashboardSearch','dashboardYearFilter','dashboardGroupFilter','dashboardStatusFilter'].forEach(id => {
     const el = $(id);
     if (el) el.addEventListener('input', renderDashboardTable);
     if (el) el.addEventListener('change', renderDashboardTable);
@@ -762,17 +640,23 @@
   });
   $('newFromRecords').addEventListener('click', () => showView('new'));
   $('refreshButton').addEventListener('click', loadRecords);
-  ['searchInput','yearFilter','classificationFilter','statusFilter'].forEach(id => {
+  ['searchInput','yearFilter','groupFilter','statusFilter'].forEach(id => {
     const el = $(id);
     if (!el) return;
     const handler = () => { recordsPage = 1; renderTable(); };
     el.addEventListener('input', handler);
     el.addEventListener('change', handler);
   });
-  $('classificationCode').addEventListener('change', () => {
-    populateSubclassificationSelect(
-      'subclassificationCode',
-      $('classificationCode').value,
+  $('categoryCode').addEventListener('change', () => {
+    populateGroupSelect('groupCode', $('categoryCode').value, '', false);
+    populateSeriesSelect('seriesCode', '', '', '', false);
+  });
+
+  $('groupCode').addEventListener('change', () => {
+    populateSeriesSelect(
+      'seriesCode',
+      $('categoryCode').value,
+      $('groupCode').value,
       '',
       false
     );
@@ -786,6 +670,6 @@
     return new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
   }
 
-  initializeNewClassification();
+  initializeNewHierarchy();
   initializeAuth();
 })();

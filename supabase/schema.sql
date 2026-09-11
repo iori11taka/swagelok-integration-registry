@@ -16,6 +16,12 @@ create table if not exists public.integrations (
   classification_name text,
   subclassification_code text,
   subclassification_name text,
+  category_code text,
+  category_name text,
+  group_code text,
+  group_name text,
+  series_code text,
+  series_name text,
   notes text,
   classification_confidence integer,
   classification_source text,
@@ -113,3 +119,11 @@ alter table public.integrations add column if not exists classification_code tex
 alter table public.integrations add column if not exists classification_name text;
 alter table public.integrations add column if not exists subclassification_code text;
 alter table public.integrations add column if not exists subclassification_name text;
+
+-- V2.8 Item Master hierarchy columns
+alter table public.integrations add column if not exists category_code text;
+alter table public.integrations add column if not exists category_name text;
+alter table public.integrations add column if not exists group_code text;
+alter table public.integrations add column if not exists group_name text;
+alter table public.integrations add column if not exists series_code text;
+alter table public.integrations add column if not exists series_name text;
