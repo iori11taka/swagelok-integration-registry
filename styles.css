@@ -2508,7 +2508,7 @@ body {
 
 .sidebar-valve {
   width: 300px;
-  margin-left: -78px;
+  margin-left: -48px;
   margin-bottom: -8px;
   opacity: .72;
   filter: saturate(.92) brightness(1.1);
