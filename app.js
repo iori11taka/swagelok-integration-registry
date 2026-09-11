@@ -1,9 +1,6 @@
 (() => {
   'use strict';
 
-  // DOM helper. Keep this before any initialization that calls $().
-  const $ = (id) => document.getElementById(id);
-
   const cfg = window.APP_CONFIG || {};
   const supabaseUrl = cfg.supabaseUrl || cfg.SUPABASE_URL || '';
   const supabaseKey = cfg.supabaseAnonKey || cfg.SUPABASE_ANON_KEY || '';
@@ -15,6 +12,135 @@
     : null;
 
   const itemMasterHierarchy = window.ITEM_MASTER_HIERARCHY || [];
+
+
+  // Core application state + DOM helper.
+  // These definitions are intentionally kept near the top because the
+  // authentication and view handlers below depend on them during startup.
+  let records = [];
+  let originalEditCode = '';
+  let currentSession = null;
+  let recordsPage = 1;
+  const recordsPerPage = 12;
+  const views = ['dashboard', 'records', 'new'];
+  const $ = id => document.getElementById(id);
+
+  function showView(name) {
+    views.forEach(v => {
+      const view = $(v + 'View');
+      if (view) view.classList.toggle('active-view', v === name);
+    });
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
+    if ($('pageTitle')) $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
+    if (name === 'new') prepareNextCode();
+  }
+
+  function setAuthGate(open) {
+    const gate = $('authGate');
+    if (gate) gate.classList.toggle('auth-gate-hidden', !open);
+    document.body.classList.toggle('auth-locked', open);
+  }
+
+  function showRecoveryMode() {
+    setAuthGate(true);
+    if ($('loginForm')) $('loginForm').hidden = true;
+    if ($('recoveryForm')) $('recoveryForm').hidden = false;
+    if ($('authTitle')) $('authTitle').textContent = 'Crear nueva contraseña';
+    const intro = document.querySelector('.auth-copy p:last-child');
+    if (intro) intro.textContent = 'Define una nueva contraseña para tu cuenta autorizada.';
+    if ($('recoveryStatus')) $('recoveryStatus').textContent = '';
+  }
+
+  function showLoginMode() {
+    if ($('loginForm')) $('loginForm').hidden = false;
+    if ($('recoveryForm')) $('recoveryForm').hidden = true;
+    if ($('authTitle')) $('authTitle').textContent = 'Iniciar sesión';
+    const intro = document.querySelector('.auth-copy p:last-child');
+    if (intro) intro.textContent = 'Accede con el usuario autorizado de Supabase para consultar y registrar integraciones.';
+  }
+
+  function setSessionUI(session) {
+    currentSession = session || null;
+    if (session?.user) {
+      if ($('sessionEmail')) $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
+      if ($('sessionBox')) $('sessionBox').hidden = false;
+      setAuthGate(false);
+    } else {
+      if ($('sessionEmail')) $('sessionEmail').textContent = '';
+      if ($('sessionBox')) $('sessionBox').hidden = true;
+      setAuthGate(true);
+      records = [];
+      renderAll();
+    }
+  }
+
+  async function initializeAuth() {
+    if (!supabaseClient) {
+      if ($('loginStatus')) $('loginStatus').textContent = 'Falta configurar Supabase en config.js.';
+      setAuthGate(true);
+      return;
+    }
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) console.error('getSession:', error);
+    setSessionUI(data?.session || null);
+
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        currentSession = session || null;
+        showRecoveryMode();
+        return;
+      }
+      setSessionUI(session);
+      if (session) await loadRecords();
+    });
+
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (hash.get('type') === 'recovery') {
+      showRecoveryMode();
+    } else if (data?.session) {
+      await loadRecords();
+    }
+  }
+
+  async function signIn(email, password) {
+    if (!supabaseClient) {
+      if ($('loginStatus')) $('loginStatus').textContent = 'Supabase no está configurado.';
+      return;
+    }
+    if ($('loginStatus')) $('loginStatus').textContent = 'Validando acceso...';
+    if ($('loginButton')) $('loginButton').disabled = true;
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      setSessionUI(data.session);
+      if ($('loginStatus')) $('loginStatus').textContent = '';
+      if ($('loginForm')) $('loginForm').reset();
+      await loadRecords();
+    } catch (err) {
+      console.error('signIn:', err);
+      const msg = String(err?.message || '');
+      if ($('loginStatus')) $('loginStatus').textContent = /invalid login credentials/i.test(msg)
+        ? 'Correo o contraseña incorrectos.'
+        : 'No se pudo iniciar sesión. Revisa el usuario y la conexión.';
+    } finally {
+      if ($('loginButton')) $('loginButton').disabled = false;
+    }
+  }
+
+  async function signOut() {
+    if (!supabaseClient) return;
+    try {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) throw error;
+    } catch (err) {
+      console.error('signOut:', err);
+    } finally {
+      setSessionUI(null);
+      showLoginMode();
+      showView('dashboard');
+    }
+  }
 
   function getCategory(code) {
     return itemMasterHierarchy.find(item => item.code === code) || null;

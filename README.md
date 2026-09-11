@@ -149,3 +149,9 @@ Rediseño visual del portal manteniendo la lógica existente:
 - diseño responsive.
 
 No cambia el esquema de Supabase ni la lógica de autenticación.
+
+## V2.8.2 - Auth hotfix
+- Restaura el estado global de la aplicación y el helper DOM `$`.
+- Restaura `showView`, `setAuthGate`, `showLoginMode`, `showRecoveryMode` y `setSessionUI`.
+- Restaura `initializeAuth`, `signIn` y `signOut`.
+- Mantiene Category -> Group -> Series y no incluye `config.js`.
