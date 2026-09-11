@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // DOM helper. Keep this before any initialization that calls $().
+  const $ = (id) => document.getElementById(id);
+
   const cfg = window.APP_CONFIG || {};
   const supabaseUrl = cfg.supabaseUrl || cfg.SUPABASE_URL || '';
   const supabaseKey = cfg.supabaseAnonKey || cfg.SUPABASE_ANON_KEY || '';

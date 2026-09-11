@@ -1,0 +1,19 @@
+SWAGELOK REGISTRO DE INTEGRACIONES — V2.8.1 HOTFIX
+
+Corrección:
+- Se restauró el helper DOM `$` al inicio de app.js.
+- Soluciona: Uncaught ReferenceError: $ is not defined (app.js:387).
+- Se conserva Category -> Group -> Series y el diseño V2.8.
+- config.js NO está incluido para no sobrescribir tus credenciales actuales de Supabase.
+
+ACTUALIZACIÓN RECOMENDADA
+1. Descomprime este ZIP.
+2. Copia app.js sobre el app.js del repositorio.
+   También puedes reemplazar los demás archivos incluidos si quieres mantener todo exactamente en V2.8.1.
+3. NO borres ni reemplaces tu config.js actual.
+4. Terminal:
+   git add .
+   git commit -m "Fix app initialization V2.8.1"
+   git push
+5. Espera a que GitHub Pages publique y luego usa Ctrl+F5.
+6. En DevTools > Console ya no debe aparecer: $ is not defined.
