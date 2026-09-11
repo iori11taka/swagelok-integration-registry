@@ -550,6 +550,49 @@
     return data;
   }
 
+  async function backupIntegration(record) {
+    if (!supabaseClient || !currentSession || !record?.id || !record?.code) {
+      console.warn('backupIntegration: registro incompleto, se omite backup.', record);
+      return { ok: false, skipped: true };
+    }
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('backup-integration', {
+        body: { record }
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data.error || 'Google backup rejected request.');
+      console.info('Backup Google OK:', record.code, data);
+      return { ok: true, data };
+    } catch (error) {
+      console.error('backupIntegration:', error);
+      return { ok: false, error };
+    }
+  }
+
+  async function resolveCreatedRecord(created) {
+    if (created && typeof created === 'object' && !Array.isArray(created) && created.id && created.code) return created;
+    if (Array.isArray(created) && created[0]?.id && created[0]?.code) return created[0];
+
+    const createdCode = typeof created === 'string'
+      ? created
+      : (created?.code || created?.integration_code || '');
+
+    if (!createdCode) return null;
+
+    const { data, error } = await supabaseClient
+      .from('integrations')
+      .select('*')
+      .eq('code', createdCode)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('resolveCreatedRecord:', error);
+      return null;
+    }
+    return data || null;
+  }
+
   $('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     if (!supabaseClient) {
@@ -671,6 +714,11 @@
 
       const updated = await updateIntegration(id, payload);
 
+      const updateBackup = await backupIntegration(updated);
+      if (!updateBackup.ok) {
+        console.warn(`El registro ${updated.code || newCode} se actualizó en Supabase, pero su backup en Google quedó pendiente.`);
+      }
+
       // The existing audit trigger stores BEFORE and AFTER snapshots automatically,
       // so a code correction is traceable without extra frontend writes.
       originalEditCode = updated.code || newCode;
@@ -721,7 +769,17 @@
     };
     try {
       const created = await createIntegration(payload);
-      $('formStatus').textContent = `Guardado: ${created.code || created}`;
+      const createdRecord = await resolveCreatedRecord(created);
+      const createdCode = createdRecord?.code || created?.code || created;
+
+      const createBackup = createdRecord
+        ? await backupIntegration(createdRecord)
+        : { ok: false, skipped: true };
+
+      $('formStatus').textContent = createBackup.ok
+        ? `Guardado: ${createdCode} · Backup Google OK`
+        : `Guardado: ${createdCode} · Backup Google pendiente`;
+
       e.target.reset();
       initializeNewHierarchy();
       ['code','description','categoryCode','groupCode','seriesCode'].forEach(id => $(id)?.classList.remove('field-invalid'));
