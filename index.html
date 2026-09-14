@@ -67,6 +67,9 @@
         <button class="nav-item active" data-view="dashboard" type="button">
           <span class="nav-icon">⌂</span><span>Resumen</span>
         </button>
+        <button class="nav-item" data-view="kpis" type="button">
+          <span class="nav-icon">▥</span><span>KPIs</span>
+        </button>
         <button class="nav-item" data-view="records" type="button">
           <span class="nav-icon">▤</span><span>Integraciones</span>
         </button>
@@ -83,7 +86,7 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.8.9</span>
+        <span>v2.9.0</span>
       </div>
 
       <div class="sidebar-footer">
@@ -94,10 +97,6 @@
 
   <main class="main">
     <header class="topbar industrial-topbar">
-      <div class="topbar-product">
-        <span class="topbar-product-mark">≡</span>
-        <strong>Swagelok Perú</strong>
-      </div>
 
       <div class="topbar-actions">
         <div id="sessionBox" class="session-box" hidden>
@@ -242,6 +241,94 @@
       </div>
     </section>
 
+    <section id="kpisView" class="view">
+      <div class="section-heading-row">
+        <div>
+          <span class="panel-kicker">ANÁLISIS</span>
+          <h2>KPIs de Integraciones</h2>
+          <p>Indicadores consolidados de la base histórica, clasificación Item Master y evolución anual.</p>
+        </div>
+      </div>
+
+      <section class="kpi-page-grid">
+        <article class="kpi-page-card">
+          <span>Total de registros</span>
+          <strong id="kpiPageTotal">0</strong>
+          <small>integraciones registradas</small>
+        </article>
+        <article class="kpi-page-card">
+          <span>Registros del año</span>
+          <strong id="kpiPageYear">0</strong>
+          <small id="kpiPageYearLabel">año actual</small>
+        </article>
+        <article class="kpi-page-card">
+          <span>Item Master asignado</span>
+          <strong id="kpiPageMapped">0</strong>
+          <small id="kpiPageMappedPct">0% de la base</small>
+        </article>
+        <article class="kpi-page-card">
+          <span>Clientes únicos</span>
+          <strong id="kpiPageClients">0</strong>
+          <small>clientes identificados</small>
+        </article>
+      </section>
+
+      <section class="kpi-dashboard-grid">
+        <article class="panel kpi-panel kpi-year-panel">
+          <div class="kpi-panel-head">
+            <div>
+              <p class="eyebrow">TENDENCIA</p>
+              <h3>Registros por año</h3>
+            </div>
+            <span id="kpiYearRange" class="kpi-panel-meta"></span>
+          </div>
+          <div id="kpiYearChart" class="kpi-year-chart"></div>
+        </article>
+
+        <article class="panel kpi-panel">
+          <div class="kpi-panel-head">
+            <div>
+              <p class="eyebrow">ITEM MASTER</p>
+              <h3>Cobertura de clasificación</h3>
+            </div>
+          </div>
+          <div class="coverage-block">
+            <div class="coverage-value-row">
+              <strong id="kpiCoveragePct">0%</strong>
+              <span id="kpiCoverageCount">0 de 0 registros</span>
+            </div>
+            <div class="coverage-track">
+              <div id="kpiCoverageBar" class="coverage-fill"></div>
+            </div>
+            <div class="coverage-legend">
+              <span><i class="coverage-dot mapped"></i>Con Category / Group / Series</span>
+              <span><i class="coverage-dot unmapped"></i>Sin Item Master</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel kpi-panel">
+          <div class="kpi-panel-head">
+            <div>
+              <p class="eyebrow">CLASIFICACIÓN</p>
+              <h3>Top Group</h3>
+            </div>
+          </div>
+          <div id="kpiTopGroups" class="kpi-ranking"></div>
+        </article>
+
+        <article class="panel kpi-panel">
+          <div class="kpi-panel-head">
+            <div>
+              <p class="eyebrow">CLASIFICACIÓN</p>
+              <h3>Top Category</h3>
+            </div>
+          </div>
+          <div id="kpiTopCategories" class="kpi-ranking"></div>
+        </article>
+      </section>
+    </section>
+
     <section id="recordsView" class="view">
       <div class="section-heading-row">
         <div>
@@ -360,7 +447,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8.9</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.9.0</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>
@@ -455,6 +542,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="item-master-hierarchy.js"></script>
-  <script src="app.js?v=289"></script>
+  <script src="app.js?v=290"></script>
 </body>
 </html>

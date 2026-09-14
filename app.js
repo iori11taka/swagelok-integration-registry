@@ -17,7 +17,7 @@
   let currentSession = null;
   let recordsPage = 1;
   const recordsPerPage = 12;
-  const views = ['dashboard', 'records', 'new'];
+  const views = ['dashboard', 'kpis', 'records', 'new'];
   const $ = id => document.getElementById(id);
 
 
@@ -78,7 +78,11 @@
   function showView(name) {
     views.forEach(v => $(v + 'View').classList.toggle('active-view', v === name));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
-    if ($('pageTitle')) $('pageTitle').textContent = name === 'new' ? 'Nueva integración' : name === 'records' ? 'Histórico de Integraciones' : 'Registro de Integraciones';
+    if ($('pageTitle')) $('pageTitle').textContent =
+      name === 'new' ? 'Nueva integración' :
+      name === 'records' ? 'Histórico de Integraciones' :
+      name === 'kpis' ? 'KPIs de Integraciones' :
+      'Registro de Integraciones';
     if (name === 'new') prepareNextCode();
   }
 
@@ -223,6 +227,7 @@
 
   function renderAll() {
     renderDashboard();
+    renderKpis();
     fillFilters();
     renderTable();
   }
@@ -377,6 +382,100 @@
     });
 
     renderDashboardTable();
+  }
+
+  function renderKpis() {
+    const currentYear = new Date().getFullYear();
+    const total = records.length;
+    const mapped = records.filter(isMapped);
+    const uniqueClients = new Set(
+      records.map(r => String(r.client || '').trim().toLowerCase()).filter(Boolean)
+    ).size;
+    const currentYearCount = records.filter(r => Number(r.integration_year) === currentYear).length;
+    const mappedPct = total ? Math.round((mapped.length / total) * 100) : 0;
+
+    if ($('kpiPageTotal')) $('kpiPageTotal').textContent = total.toLocaleString('es-PE');
+    if ($('kpiPageYear')) $('kpiPageYear').textContent = currentYearCount.toLocaleString('es-PE');
+    if ($('kpiPageYearLabel')) $('kpiPageYearLabel').textContent = `registros en ${currentYear}`;
+    if ($('kpiPageMapped')) $('kpiPageMapped').textContent = mapped.length.toLocaleString('es-PE');
+    if ($('kpiPageMappedPct')) $('kpiPageMappedPct').textContent = `${mappedPct}% de la base`;
+    if ($('kpiPageClients')) $('kpiPageClients').textContent = uniqueClients.toLocaleString('es-PE');
+
+    if ($('kpiCoveragePct')) $('kpiCoveragePct').textContent = `${mappedPct}%`;
+    if ($('kpiCoverageCount')) $('kpiCoverageCount').textContent =
+      `${mapped.length.toLocaleString('es-PE')} de ${total.toLocaleString('es-PE')} registros`;
+    if ($('kpiCoverageBar')) $('kpiCoverageBar').style.width = `${mappedPct}%`;
+
+    const byYear = {};
+    records.forEach(r => {
+      const y = Number(r.integration_year);
+      if (y >= 2000 && y <= currentYear) byYear[y] = (byYear[y] || 0) + 1;
+    });
+
+    const yearEntries = Object.entries(byYear)
+      .sort((a,b) => Number(a[0]) - Number(b[0]))
+      .slice(-10);
+    const maxYear = Math.max(1, ...yearEntries.map(([,count]) => count));
+
+    if ($('kpiYearChart')) {
+      $('kpiYearChart').innerHTML = yearEntries.map(([year, count]) => `
+        <div class="kpi-year-item">
+          <span class="kpi-year-value">${count.toLocaleString('es-PE')}</span>
+          <div class="kpi-year-track">
+            <div class="kpi-year-fill" style="height:${Math.max(8, Math.round((count/maxYear)*100))}%"></div>
+          </div>
+          <strong>${year}</strong>
+        </div>
+      `).join('') || '<div class="kpi-empty">Sin datos anuales.</div>';
+    }
+
+    if ($('kpiYearRange')) {
+      $('kpiYearRange').textContent = yearEntries.length
+        ? `${yearEntries[0][0]}–${yearEntries[yearEntries.length - 1][0]}`
+        : '';
+    }
+
+    const rank = (fieldCode, fieldName) => {
+      const counts = new Map();
+      records.forEach(r => {
+        const code = String(r[fieldCode] || '').trim();
+        if (!code) return;
+        const name = String(r[fieldName] || '').trim();
+        const key = `${code}|||${name}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      return [...counts.entries()]
+        .map(([key, count]) => {
+          const [code, name] = key.split('|||');
+          return { code, name, count };
+        })
+        .sort((a,b) => b.count - a.count)
+        .slice(0, 6);
+    };
+
+    const renderRanking = (id, rows) => {
+      const el = $(id);
+      if (!el) return;
+      const max = Math.max(1, ...rows.map(r => r.count));
+      el.innerHTML = rows.map((r, index) => `
+        <div class="kpi-rank-row">
+          <span class="kpi-rank-position">${index + 1}</span>
+          <div class="kpi-rank-copy">
+            <div class="kpi-rank-title">
+              <strong>${escapeHtml(r.code)}</strong>
+              <span>${escapeHtml(r.name || 'Sin nombre')}</span>
+              <b>${r.count.toLocaleString('es-PE')}</b>
+            </div>
+            <div class="kpi-rank-track">
+              <div class="kpi-rank-fill" style="width:${Math.max(4, Math.round((r.count/max)*100))}%"></div>
+            </div>
+          </div>
+        </div>
+      `).join('') || '<div class="kpi-empty">Aún no hay registros clasificados.</div>';
+    };
+
+    renderRanking('kpiTopGroups', rank('group_code', 'group_name'));
+    renderRanking('kpiTopCategories', rank('category_code', 'category_name'));
   }
 
   function fillFilters() {
@@ -939,8 +1038,13 @@
   const dashboardViewAll = $('dashboardViewAll');
   if (dashboardViewAll) dashboardViewAll.addEventListener('click', () => showView('records'));
 
+  const yearsCard = document.querySelector('.years-card');
+  if (yearsCard) {
+    yearsCard.classList.add('clickable-side-card');
+    yearsCard.addEventListener('click', () => showView('kpis'));
+  }
   const yearsViewDetail = $('yearsViewDetail');
-  if (yearsViewDetail) yearsViewDetail.addEventListener('click', () => showView('records'));
+  if (yearsViewDetail) yearsViewDetail.addEventListener('click', e => { e.stopPropagation(); showView('kpis'); });
 
   const incompleteCard = $('incompleteCard');
   if (incompleteCard) incompleteCard.addEventListener('click', () => {
