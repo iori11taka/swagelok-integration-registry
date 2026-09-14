@@ -1,19 +1,28 @@
-V2.9.1 - Ajuste visual de KPIs
+V2.9.2 - Fix Item Master al crear una integración
 
-Cambios:
-- La pestaña KPIs ahora usa los mismos márgenes internos que el resto de la web.
-- Las 4 tarjetas superiores tienen la misma altura.
-- Registros por año y Cobertura de clasificación quedan alineados en la misma fila.
-- Top Group y Top Category quedan alineados en la segunda fila.
-- Se igualaron alturas, paddings y separación entre tarjetas.
-- Mejor respuesta a resoluciones menores.
-- Se agregó cache-busting a styles.css y app.js para evitar que GitHub Pages/Chrome use CSS anterior.
+Problema corregido:
+El RPC create_integration generaba correctamente la INT, pero en algunas versiones
+no persistía category_code/category_name/group_code/group_name/series_code/series_name.
+Por eso el registro aparecía como "Sin Item Master" inmediatamente después de crearlo.
+
+Solución:
+1. Se crea la INT con el RPC actual (se conserva el correlativo automático).
+2. Se recupera la fila recién creada.
+3. Se guarda Category / Group / Series mediante UPDATE directo, usando la misma
+   lógica que ya funciona al editar una integración.
+4. Luego se envía el registro completo al backup de Google.
+
+No requiere cambios SQL ni altera registros existentes.
+
+Nota:
+Si la consola muestra CORS al llamar backup-integration, la INT y su Item Master
+quedan guardados en Supabase; únicamente el backup de Google queda pendiente.
+Ese CORS es un problema independiente de la clasificación.
 
 Instalación:
-1. Reemplaza index.html, styles.css y app.js.
-2. Conserva config.js, item-master-hierarchy.js y assets.
-3. Ejecuta:
-   git add .
-   git commit -m "Align KPI layout v2.9.1"
-   git push
-4. Luego Ctrl+Shift+R.
+- Reemplaza index.html, styles.css y app.js.
+- Conserva config.js, item-master-hierarchy.js y assets.
+- git add .
+- git commit -m "Fix Item Master on create v2.9.2"
+- git push
+- Ctrl+Shift+R

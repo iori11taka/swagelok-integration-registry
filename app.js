@@ -997,26 +997,36 @@
     try {
       const created = await createIntegration(payload);
 
-      // El RPC puede devolver formatos distintos según la versión.
-      // Usamos también el código previsualizado del formulario para recuperar
-      // la fila recién creada antes de enviarla a Google.
-      const createdRecord = await resolveCreatedRecord(created, required.code);
+      // El RPC create_integration genera el código/correlativo, pero algunas versiones
+      // no persisten los campos Category / Group / Series del JSON recibido.
+      // Recuperamos la fila recién creada y aplicamos la clasificación con un UPDATE
+      // directo (la misma ruta que ya funciona correctamente al editar registros).
+      let createdRecord = await resolveCreatedRecord(created, required.code);
       const createdCode = createdRecord?.code || required.code || created?.code || created;
 
-      const createBackup = createdRecord
-        ? await backupIntegration(createdRecord)
-        : { ok: false, skipped: true };
-
       if (!createdRecord) {
-        console.error('CREATE_BACKUP: la INT se creó, pero no se pudo recuperar la fila completa para el backup.', {
-          created,
-          expectedCode: required.code
-        });
+        throw new Error(`La integración ${required.code} se creó, pero no se pudo recuperar para completar Item Master.`);
       }
 
+      const hierarchyPayload = selectedHierarchyPayload(categoryCode, groupCode, seriesCode);
+
+      const hierarchyNeedsUpdate =
+        createdRecord.category_code !== hierarchyPayload.category_code ||
+        createdRecord.group_code !== hierarchyPayload.group_code ||
+        createdRecord.series_code !== hierarchyPayload.series_code ||
+        createdRecord.category_name !== hierarchyPayload.category_name ||
+        createdRecord.group_name !== hierarchyPayload.group_name ||
+        createdRecord.series_name !== hierarchyPayload.series_name;
+
+      if (hierarchyNeedsUpdate) {
+        createdRecord = await updateIntegration(createdRecord.id, hierarchyPayload);
+      }
+
+      const createBackup = await backupIntegration(createdRecord);
+
       $('formStatus').textContent = createBackup.ok
-        ? `Guardado: ${createdCode} · Backup Google OK`
-        : `Guardado: ${createdCode} · Backup Google pendiente`;
+        ? `Guardado: ${createdCode} · Item Master guardado · Backup Google OK`
+        : `Guardado: ${createdCode} · Item Master guardado · Backup Google pendiente`;
 
       e.target.reset();
       initializeNewHierarchy();
