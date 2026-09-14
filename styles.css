@@ -2960,3 +2960,96 @@ body {
     min-width: 900px !important;
   }
 }
+
+/* =========================================================
+   PORTAL RETURN NAVIGATION
+   ========================================================= */
+
+/* Acceso de retorno visible aun antes de iniciar sesión */
+.auth-portal-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 18px;
+  padding: 8px 11px;
+  border: 1px solid #d7e2eb;
+  border-radius: 9px;
+  background: #f7fafc;
+  color: #005eb8;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.auth-portal-link:hover {
+  background: #edf6fd;
+  border-color: #b9d6ec;
+  color: #004b93;
+  transform: translateX(-1px);
+}
+
+.auth-portal-link span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Botón integrado en la zona inferior del sidebar */
+.sidebar-portal-button {
+  width: calc(100% - 8px);
+  min-height: 40px;
+  margin: 2px 4px 12px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(151, 195, 224, .28);
+  border-radius: 9px;
+  background: rgba(255,255,255,.045);
+  color: #d7e8f3;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+  box-sizing: border-box;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.sidebar-portal-button:hover {
+  background: rgba(0,110,189,.23);
+  border-color: rgba(122,190,234,.55);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.sidebar-portal-arrow {
+  width: 18px;
+  flex: 0 0 18px;
+  text-align: center;
+  color: #79bce8;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sidebar-portal-button:hover .sidebar-portal-arrow {
+  color: #ffffff;
+}
+
+/* El bloque de estado ya no necesita absorber todo el espacio inferior */
+.sidebar-footer {
+  margin-top: 0;
+}
+
+@media (max-width: 950px) {
+  .sidebar-portal-button {
+    justify-content: center;
+    width: 46px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0;
+  }
+
+  .sidebar-portal-button span:last-child {
+    display: none;
+  }
+}
