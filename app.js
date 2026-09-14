@@ -16,6 +16,8 @@
   let originalEditCode = '';
   let currentSession = null;
   let recordsPage = 1;
+  let recordsLoadPromise = null;
+  let sessionRefreshPromise = null;
   const recordsPerPage = 12;
   const views = ['dashboard', 'kpis', 'records', 'new'];
   const $ = id => document.getElementById(id);
@@ -141,8 +143,24 @@
         showRecoveryMode();
         return;
       }
-      setSessionUI(session);
-      if (session) await loadRecords();
+
+      if (event === 'SIGNED_OUT') {
+        setSessionUI(null);
+        return;
+      }
+
+      if (session) {
+        currentSession = session;
+        $('sessionEmail').textContent = session.user?.email || 'Usuario autenticado';
+        $('sessionBox').hidden = false;
+        setAuthGate(false);
+
+        // SIGNED_IN y TOKEN_REFRESHED pueden ocurrir con la web abierta.
+        // loadRecords() tiene protección contra llamadas simultáneas.
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await loadRecords();
+        }
+      }
     });
 
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -182,6 +200,67 @@
     showView('dashboard');
   }
 
+  function isExpiredSessionError(error) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || '');
+    const status = Number(error?.status || error?.context?.status || 0);
+
+    return code === 'PGRST303' ||
+      status === 401 ||
+      /jwt\s*expired|expired\s*jwt|token.*expired|unauthorized/i.test(message);
+  }
+
+  async function ensureFreshSession(force = false) {
+    if (!supabaseClient) return null;
+
+    if (sessionRefreshPromise) return sessionRefreshPromise;
+
+    sessionRefreshPromise = (async () => {
+      const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+
+      if (sessionError) {
+        console.warn('getSession antes de cargar registros:', sessionError);
+      }
+
+      let session = sessionData?.session || currentSession || null;
+      if (!session) {
+        setSessionUI(null);
+        return null;
+      }
+
+      const expiresAtMs = Number(session.expires_at || 0) * 1000;
+      const expiresSoon = expiresAtMs > 0 && expiresAtMs <= Date.now() + 90_000;
+
+      if (force || expiresSoon) {
+        const { data, error } = await supabaseClient.auth.refreshSession();
+
+        if (error || !data?.session) {
+          console.warn('refreshSession:', error || 'No se recibió una nueva sesión.');
+          await supabaseClient.auth.signOut().catch(() => {});
+          setSessionUI(null);
+          return null;
+        }
+
+        session = data.session;
+      }
+
+      currentSession = session;
+      if (session?.user) {
+        $('sessionEmail').textContent = session.user.email || 'Usuario autenticado';
+        $('sessionBox').hidden = false;
+        setAuthGate(false);
+      }
+
+      return session;
+    })();
+
+    try {
+      return await sessionRefreshPromise;
+    } finally {
+      sessionRefreshPromise = null;
+    }
+  }
+
   async function fetchAllRecords() {
     const pageSize = 1000;
     let from = 0;
@@ -203,25 +282,87 @@
   }
 
   async function loadRecords() {
-    if (!supabaseClient || !currentSession) {
-      records = [];
-      renderAll();
-      return;
-    }
-    $('refreshButton').disabled = true;
-    $('refreshButton').textContent = 'Actualizando...';
-    try {
-      records = await fetchAllRecords();
-      if ($('loginStatus')) $('loginStatus').textContent = '';
-      renderAll();
-    } catch (error) {
-      console.error('loadRecords:', error);
-      if (/jwt|auth|permission|row-level|rls/i.test(String(error?.message || ''))) {
-        $('loginStatus').textContent = 'La sesión no tiene permiso para consultar los registros.';
+    // Evita varias lecturas simultáneas disparadas por SIGNED_IN / TOKEN_REFRESHED / UI.
+    if (recordsLoadPromise) return recordsLoadPromise;
+
+    recordsLoadPromise = (async () => {
+      if (!supabaseClient) {
+        setSessionUI(null);
+        return;
       }
+
+      const previousRecords = records;
+      const refreshButton = $('refreshButton');
+
+      if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.textContent = 'Actualizando...';
+      }
+
+      try {
+        const session = await ensureFreshSession(false);
+        if (!session) return;
+
+        try {
+          const loaded = await fetchAllRecords();
+          records = loaded;
+        } catch (error) {
+          if (!isExpiredSessionError(error)) throw error;
+
+          console.info('La sesión venció durante la consulta. Renovando token y reintentando...');
+
+          const refreshedSession = await ensureFreshSession(true);
+          if (!refreshedSession) return;
+
+          // Reintentamos la lectura completa con el JWT renovado.
+          records = await fetchAllRecords();
+        }
+
+        if ($('loginStatus')) $('loginStatus').textContent = '';
+        renderAll();
+
+      } catch (error) {
+        console.error('loadRecords:', error);
+
+        // Importante: un 401 no debe convertir visualmente la base en "0 registros".
+        // Conservamos la última información válida hasta renovar sesión o volver a iniciar sesión.
+        records = previousRecords;
+
+        if (isExpiredSessionError(error)) {
+          const refreshedSession = await ensureFreshSession(true);
+
+          if (!refreshedSession) {
+            if ($('loginStatus')) {
+              $('loginStatus').textContent = 'Tu sesión venció. Inicia sesión nuevamente.';
+            }
+            return;
+          }
+
+          try {
+            records = await fetchAllRecords();
+            if ($('loginStatus')) $('loginStatus').textContent = '';
+            renderAll();
+            return;
+          } catch (retryError) {
+            console.error('loadRecords retry:', retryError);
+          }
+        }
+
+        if ($('loginStatus')) {
+          $('loginStatus').textContent = 'No se pudieron actualizar los registros. Se conserva la última información cargada.';
+        }
+      } finally {
+        if (refreshButton) {
+          refreshButton.disabled = false;
+          refreshButton.textContent = 'Actualizar';
+        }
+      }
+    })();
+
+    try {
+      return await recordsLoadPromise;
     } finally {
-      $('refreshButton').disabled = false;
-      $('refreshButton').textContent = 'Actualizar';
+      recordsLoadPromise = null;
     }
   }
 
@@ -1135,5 +1276,12 @@
   ensureDeleteButtonStyles();
   initializeNewHierarchy();
   updateCreateButtonState();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible' || !currentSession) return;
+
+    const session = await ensureFreshSession(false);
+    if (session) await loadRecords();
+  });
+
   initializeAuth();
 })();
