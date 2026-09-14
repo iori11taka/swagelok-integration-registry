@@ -3085,3 +3085,173 @@ body {
   .kpi-year-chart { overflow-x: auto; justify-content: flex-start; }
   .kpi-year-item { min-width: 60px; }
 }
+
+
+/* =========================================================
+   V2.9.1 - KPI LAYOUT ALIGNMENT
+   Corrige márgenes, alineación y proporciones de la pestaña KPIs.
+   ========================================================= */
+
+#kpisView {
+  padding: 24px 28px 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+#kpisView .section-heading-row {
+  margin: 0 0 18px;
+  align-items: flex-end;
+}
+
+#kpisView .section-heading-row h2 {
+  margin: 2px 0 4px;
+}
+
+#kpisView .section-heading-row p {
+  margin: 0;
+  max-width: 900px;
+}
+
+/* KPIs superiores: misma altura y separación */
+#kpisView .kpi-page-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 16px;
+}
+
+#kpisView .kpi-page-card {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 18px 20px;
+}
+
+/* Cuadrícula principal perfectamente alineada */
+#kpisView .kpi-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 0.95fr);
+  grid-template-areas:
+    "years coverage"
+    "groups categories";
+  gap: 16px;
+  align-items: stretch;
+}
+
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(1) {
+  grid-area: years;
+}
+
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(2) {
+  grid-area: coverage;
+}
+
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(3) {
+  grid-area: groups;
+}
+
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(4) {
+  grid-area: categories;
+}
+
+#kpisView .kpi-panel {
+  margin: 0;
+  height: 100%;
+  min-width: 0;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+/* Primera fila: misma altura visual */
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(1),
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(2) {
+  min-height: 320px;
+}
+
+/* Segunda fila: misma altura visual */
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(3),
+#kpisView .kpi-dashboard-grid > .kpi-panel:nth-child(4) {
+  min-height: 190px;
+}
+
+/* Gráfico anual mejor proporcionado */
+#kpisView .kpi-year-chart {
+  min-height: 230px;
+  height: 230px;
+  padding: 12px 2px 0;
+  gap: 10px;
+}
+
+#kpisView .kpi-year-item {
+  grid-template-rows: 20px 165px 20px;
+  min-width: 0;
+}
+
+#kpisView .kpi-year-track {
+  height: 165px;
+}
+
+/* Cobertura centrada dentro de su tarjeta */
+#kpisView .coverage-block {
+  min-height: 220px;
+  align-content: center;
+  gap: 20px;
+}
+
+/* Ranking más limpio y parejo */
+#kpisView .kpi-ranking {
+  align-content: start;
+}
+
+#kpisView .kpi-rank-row {
+  min-height: 38px;
+}
+
+/* Evita que el contenido llegue pegado a los bordes de pantalla */
+#kpisView,
+#kpisView * {
+  box-sizing: border-box;
+}
+
+/* Responsive */
+@media (max-width: 1250px) {
+  #kpisView {
+    padding: 20px 20px 18px;
+  }
+
+  #kpisView .kpi-page-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #kpisView .kpi-dashboard-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "years"
+      "coverage"
+      "groups"
+      "categories";
+  }
+
+  #kpisView .kpi-dashboard-grid > .kpi-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  #kpisView {
+    padding: 16px 14px;
+  }
+
+  #kpisView .kpi-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #kpisView .kpi-year-chart {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  #kpisView .kpi-year-item {
+    min-width: 60px;
+  }
+}
