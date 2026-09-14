@@ -519,6 +519,35 @@
     if(state){ state.textContent=isMapped(record)?`${record.series_code} asignada`:'Sin Item Master'; state.className=`manual-badge${isMapped(record)?' assigned':''}`; }
   }
 
+  function setResponsibleSelectValue(selectId, value) {
+    const select = $(selectId);
+    if (!select) return;
+
+    const normalized = String(value || '').trim();
+
+    // El histórico puede contener responsables antiguos que no están en la lista actual.
+    // Los mostramos temporalmente para no perder información al editar el registro.
+    const historicalOption = select.querySelector('option[data-historical="true"]');
+    if (historicalOption) historicalOption.remove();
+
+    if (!normalized) {
+      select.value = '';
+      return;
+    }
+
+    const exists = Array.from(select.options).some(option => option.value === normalized);
+
+    if (!exists) {
+      const option = document.createElement('option');
+      option.value = normalized;
+      option.textContent = `${normalized} (histórico)`;
+      option.dataset.historical = 'true';
+      select.appendChild(option);
+    }
+
+    select.value = normalized;
+  }
+
   function openEditModal(id) {
     const record = records.find(r => String(r.id) === String(id));
     if (!record) {
@@ -531,7 +560,7 @@
     $('editCode').value = record.code || '';
     $('editClient').value = record.client || '';
     $('editDescription').value = record.description || '';
-    $('editResponsible').value = record.responsible || '';
+    setResponsibleSelectValue('editResponsible', record.responsible || '');
     $('editNotes').value = record.notes || '';
     $('editFormStatus').textContent = '';
     $('saveEditButton').disabled = false;

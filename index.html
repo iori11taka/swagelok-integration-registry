@@ -14,15 +14,6 @@
 
   <div id="authGate" class="auth-gate">
     <section class="auth-card" aria-labelledby="authTitle">
-      <a
-        href="https://iori11taka.github.io/swagelok-tools-portal/"
-        class="auth-portal-link"
-        aria-label="Volver al Portal de Herramientas"
-      >
-        <span aria-hidden="true">←</span>
-        Volver al Portal
-      </a>
-
       <div class="auth-brand">
         <div class="auth-logo-shell">
           <img src="./assets/swagelok-mark.png" alt="Swagelok" class="auth-logo-mark" />
@@ -92,17 +83,8 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.8.8</span>
+        <span>v2.8.9</span>
       </div>
-
-      <a
-        href="https://iori11taka.github.io/swagelok-tools-portal/"
-        class="sidebar-portal-button"
-        aria-label="Volver al Portal de Herramientas"
-      >
-        <span class="sidebar-portal-arrow" aria-hidden="true">←</span>
-        <span>Portal</span>
-      </a>
 
       <div class="sidebar-footer">
         <span class="status-dot"></span>
@@ -112,6 +94,11 @@
 
   <main class="main">
     <header class="topbar industrial-topbar">
+      <div class="topbar-product">
+        <span class="topbar-product-mark">≡</span>
+        <strong>Swagelok Perú</strong>
+      </div>
+
       <div class="topbar-actions">
         <div id="sessionBox" class="session-box" hidden>
           <span class="user-avatar">IT</span>
@@ -320,7 +307,20 @@
           <label><span class="field-label">Código de integración <span class="required-mark" aria-hidden="true">*</span></span><input id="code" name="code" readonly required placeholder="Se generará automáticamente" /></label>
           <label>Cliente<input id="client" name="client" /></label>
           <label class="full"><span class="field-label">Descripción <span class="required-mark" aria-hidden="true">*</span></span><textarea id="description" name="description" required rows="4"></textarea></label>
-          <label>Responsable<input id="responsible" name="responsible" /></label>
+          <label>Responsable
+            <select id="responsible" name="responsible">
+              <option value="">Seleccionar responsable</option>
+              <option value="Plataforma - Carlos T.">Plataforma - Carlos T.</option>
+              <option value="Plataforma - Melissa B.">Plataforma - Melissa B.</option>
+              <option value="Plataforma - Samir C.">Plataforma - Samir C.</option>
+              <option value="Plataforma - Aurora C.">Plataforma - Aurora C.</option>
+              <option value="Plataforma - Zully T.">Plataforma - Zully T.</option>
+              <option value="Paul Helden">Paul Helden</option>
+              <option value="Gean Jessen">Gean Jessen</option>
+              <option value="Jhonatan Tito">Jhonatan Tito</option>
+              <option value="Oscar Pulido">Oscar Pulido</option>
+            </select>
+          </label>
 
           <div class="manual-classification-intro full">
             <div>
@@ -360,7 +360,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8.8</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.8.9</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>
@@ -394,7 +394,18 @@
         </label>
 
         <label>Responsable
-          <input id="editResponsible" />
+          <select id="editResponsible">
+            <option value="">Seleccionar responsable</option>
+              <option value="Plataforma - Carlos T.">Plataforma - Carlos T.</option>
+              <option value="Plataforma - Melissa B.">Plataforma - Melissa B.</option>
+              <option value="Plataforma - Samir C.">Plataforma - Samir C.</option>
+              <option value="Plataforma - Aurora C.">Plataforma - Aurora C.</option>
+              <option value="Plataforma - Zully T.">Plataforma - Zully T.</option>
+              <option value="Paul Helden">Paul Helden</option>
+              <option value="Gean Jessen">Gean Jessen</option>
+              <option value="Jhonatan Tito">Jhonatan Tito</option>
+              <option value="Oscar Pulido">Oscar Pulido</option>
+          </select>
         </label>
 
         <div class="manual-classification-intro full historical-classification">
@@ -444,6 +455,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="item-master-hierarchy.js"></script>
-  <script src="app.js?v=288"></script>
+  <script src="app.js?v=289"></script>
 </body>
 </html>
