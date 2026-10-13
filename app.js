@@ -890,14 +890,32 @@
     return data;
   }
 
-  async function createIntegration(payload) {
-    if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
-    const rpcName = getCodeMode() === 'custom' ? 'create_custom_integration' : 'create_integration';
-    const rpcPayload = getCodeMode() === 'custom' ? { ...payload, code: $('code').value.trim() } : payload;
-    const { data, error } = await supabaseClient.rpc(rpcName, { p_data: rpcPayload });
-    if (error) throw error;
-    return data;
+  
+async function createIntegration(payload) {
+  if (!supabaseClient || !currentSession) {
+    throw new Error('AUTH_REQUIRED');
   }
+
+  const isCustom = getCodeMode() === 'custom';
+
+  const rpcPayload = {
+    ...payload,
+    code: isCustom ? $('code').value.trim() : null
+  };
+
+  const { data, error } = await supabaseClient.rpc(
+    'create_integration',
+    { p_data: rpcPayload }
+  );
+
+  if (error) {
+    console.error('Error al crear integración:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 
   async function backupIntegration(record) {
     if (!supabaseClient || !currentSession || !record?.id || !record?.code) {
