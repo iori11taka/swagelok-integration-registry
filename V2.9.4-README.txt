@@ -1,0 +1,10 @@
+V2.9.4 - Códigos INT personalizados
+
+1. Ejecuta supabase/migrations/20261013_v294_custom_codes.sql en Supabase SQL Editor.
+2. Copia los archivos del ZIP sobre tu proyecto, conservando tu config.js.
+3. git add . && git commit -m "Add custom INT codes" && git push
+4. Actualiza la web con Ctrl+Shift+R.
+
+En Nueva integración elige INT personalizada para escribir cualquier código único.
+Se mantienen Cliente, Descripción, Responsable, Item Master y Observaciones.
+Los códigos personalizados no consumen el correlativo automático.

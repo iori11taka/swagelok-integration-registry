@@ -3279,3 +3279,10 @@ body {
     min-height: 38px;
   }
 }
+
+/* v2.9.4 - Código personalizado */
+.custom-code-switch {display:flex; flex-wrap:wrap; align-items:center; gap:12px 22px; padding:14px 16px; border:1px solid #dbe6ef; border-radius:9px; background:#f5f9fd;}
+.custom-code-switch > .field-label {width:100%;font-weight:700;}
+.custom-code-switch label {display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;}
+.custom-code-switch input {width:auto;accent-color:#006db6;}
+.custom-code-switch small {width:100%;color:#637c8e;}

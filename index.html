@@ -86,7 +86,7 @@
       <div class="sidebar-product">
         <strong>Swagelok Perú</strong>
         <span>Registro de Integraciones</span>
-        <span>v2.9.3</span>
+        <span>v2.9.4</span>
       </div>
 
       <div class="sidebar-footer">
@@ -394,7 +394,8 @@
         </div>
 
         <form id="integrationForm" class="form-grid">
-          <label><span class="field-label">Código de integración <span class="required-mark" aria-hidden="true">*</span></span><input id="code" name="code" readonly required placeholder="Se generará automáticamente" /></label>
+          <div class="full custom-code-switch"><span class="field-label">Tipo de código</span><label><input type="radio" name="codeMode" value="automatic" checked /> INT correlativa (automática)</label><label><input type="radio" name="codeMode" value="custom" /> INT personalizada (otro código)</label><small>La opción personalizada no consume ni modifica el correlativo de las INT automáticas.</small></div>
+          <label><span class="field-label">Código de integración <span class="required-mark" aria-hidden="true">*</span></span><input id="code" name="code" readonly required placeholder="Se generará automáticamente" maxlength="100" /></label>
           <label>Cliente<input id="client" name="client" /></label>
           <label class="full"><span class="field-label">Descripción <span class="required-mark" aria-hidden="true">*</span></span><textarea id="description" name="description" required rows="4"></textarea></label>
           <label>Responsable
@@ -450,7 +451,7 @@
 
     <footer class="app-footer">
       <span>© 2026 Swagelok Perú. Uso interno.</span>
-      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.9.3</span>
+      <span>Soporte&nbsp;&nbsp;|&nbsp;&nbsp;Documentación&nbsp;&nbsp;|&nbsp;&nbsp;v2.9.4</span>
       <span><i class="chip-dot chip-dot-green"></i> Supabase conectado</span>
     </footer>
   </main>

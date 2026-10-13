@@ -701,13 +701,15 @@
     });
   }
 
+  function getCodeMode() { return document.querySelector('input[name="codeMode"]:checked')?.value || 'automatic'; }
+
   function getNewIntegrationRequiredState() {
     const code = ($('code')?.value || '').trim();
     const description = ($('description')?.value || '').trim();
     const categoryCode = $('categoryCode')?.value || '';
     const groupCode = $('groupCode')?.value || '';
     const seriesCode = $('seriesCode')?.value || '';
-    const hasValidCode = /^INT_\d+-\d{2}$/i.test(code);
+    const hasValidCode = getCodeMode() === 'custom' ? (code.length >= 2 && code.length <= 100) : /^INT_\d+-\d{2}$/i.test(code);
     return { code, description, categoryCode, groupCode, seriesCode, hasValidCode };
   }
 
@@ -731,6 +733,7 @@
   }
 
   async function prepareNextCode() {
+    if (getCodeMode() === 'custom') return;
     const codeInput = $('code');
     if (!supabaseClient || !currentSession) {
       if (codeInput) codeInput.value = '';
@@ -889,7 +892,9 @@
 
   async function createIntegration(payload) {
     if (!supabaseClient || !currentSession) throw new Error('AUTH_REQUIRED');
-    const { data, error } = await supabaseClient.rpc('create_integration', { p_data: payload });
+    const rpcName = getCodeMode() === 'custom' ? 'create_custom_integration' : 'create_integration';
+    const rpcPayload = getCodeMode() === 'custom' ? { ...payload, code: $('code').value.trim() } : payload;
+    const { data, error } = await supabaseClient.rpc(rpcName, { p_data: rpcPayload });
     if (error) throw error;
     return data;
   }
@@ -1169,7 +1174,13 @@
         ? `Guardado: ${createdCode} · Item Master guardado · Backup Google OK`
         : `Guardado: ${createdCode} · Item Master guardado · Backup Google pendiente`;
 
+      const keepCustomMode = getCodeMode() === 'custom';
       e.target.reset();
+      if (keepCustomMode) {
+        document.querySelector('input[name="codeMode"][value="custom"]').checked = true;
+        $('code').readOnly = false;
+        $('code').value = '';
+      }
       initializeNewHierarchy();
       ['code','description','categoryCode','groupCode','seriesCode'].forEach(id => $(id)?.classList.remove('field-invalid'));
       updateCreateButtonState();
@@ -1245,6 +1256,16 @@
     el.addEventListener('input', handler);
     el.addEventListener('change', handler);
   });
+  document.querySelectorAll('input[name="codeMode"]').forEach(radio => radio.addEventListener('change', async () => {
+    const custom = getCodeMode() === 'custom';
+    $('code').readOnly = !custom;
+    $('code').value = '';
+    $('code').placeholder = custom ? 'Ej.: INT_PROYECTO_ESPECIAL' : 'Se generará automáticamente';
+    $('formStatus').textContent = custom ? 'Ingresa un código único para esta integración.' : '';
+    if (!custom) await prepareNextCode();
+    updateCreateButtonState();
+  }));
+  $('code').addEventListener('input', updateCreateButtonState);
   $('categoryCode').addEventListener('change', () => {
     populateGroupSelect('groupCode',$('categoryCode').value,'',false);
     populateSeriesSelect('seriesCode','','','',false);
